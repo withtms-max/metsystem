@@ -102,7 +102,7 @@ export default function OnboardingPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="박센터장"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-teal-500"
             />
           </div>
 
@@ -113,7 +113,7 @@ export default function OnboardingPage() {
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               placeholder="강남센터"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-teal-500"
             />
           </div>
 
@@ -127,7 +127,7 @@ export default function OnboardingPage() {
                   onClick={() => setIndustry(i)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
                     industry === i
-                      ? 'bg-blue-600 text-white border-blue-600'
+                      ? 'bg-teal-600 text-white border-teal-600'
                       : 'bg-white text-slate-600 border-slate-200'
                   }`}>
                   {i}
@@ -145,7 +145,7 @@ export default function OnboardingPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl transition">
+            className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold rounded-xl transition">
             {loading ? '처리 중...' : '조직 만들기'}
           </button>
 

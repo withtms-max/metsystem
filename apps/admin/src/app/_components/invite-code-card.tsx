@@ -28,7 +28,7 @@ export default function InviteCodeCard({ inviteCode, orgName }: Props) {
   }
 
   return (
-    <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg">
+    <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs font-semibold uppercase tracking-wider opacity-80">

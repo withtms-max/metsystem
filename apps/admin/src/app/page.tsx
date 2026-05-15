@@ -91,7 +91,7 @@ export default async function Home() {
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold">
+            <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center text-white font-bold">
               M
             </div>
             <div>
@@ -162,7 +162,7 @@ export default async function Home() {
                   <tr key={m.user_id} className="border-t border-slate-100">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                        <div className="w-9 h-9 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-sm">
                           {m.salesperson_name[0]}
                         </div>
                         <span className="font-semibold text-slate-900">{m.salesperson_name}</span>
@@ -186,7 +186,7 @@ export default async function Home() {
                           활발
                         </span>
                       ) : m.ta + m.meeting >= 5 ? (
-                        <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">
+                        <span className="px-2 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-bold">
                           보통
                         </span>
                       ) : m.ta + m.meeting > 0 ? (
@@ -236,8 +236,8 @@ function StatCard({
   color: 'blue' | 'emerald' | 'amber';
 }) {
   const ringColor =
-    color === 'blue' ? 'bg-blue-50 text-blue-700' : color === 'emerald' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700';
-  const barColor = color === 'blue' ? 'bg-blue-600' : color === 'emerald' ? 'bg-emerald-500' : 'bg-amber-500';
+    color === 'blue' ? 'bg-teal-50 text-teal-700' : color === 'emerald' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700';
+  const barColor = color === 'blue' ? 'bg-teal-600' : color === 'emerald' ? 'bg-emerald-500' : 'bg-amber-500';
 
   return (
     <div className="bg-white rounded-2xl p-6 border border-slate-200">

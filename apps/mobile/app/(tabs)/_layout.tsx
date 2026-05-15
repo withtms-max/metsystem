@@ -1,53 +1,68 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
+import { Palette } from '@/constants/theme';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#94A3B8',
+        tabBarActiveTintColor: Palette.primary,
+        tabBarInactiveTintColor: Palette.textMuted,
         headerShown: false,
         tabBarStyle: {
-          paddingTop: 6,
-          paddingBottom: 6,
-          height: 64,
+          paddingTop: 8,
+          paddingBottom: 8,
+          height: 68,
           borderTopWidth: 1,
-          borderTopColor: '#E2E8F0',
-          backgroundColor: '#FFFFFF',
+          borderTopColor: Palette.border,
+          backgroundColor: Palette.card,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '600',
+          marginTop: 2,
         },
+        tabBarIconStyle: { marginBottom: -2 },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: '홈',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="pipeline"
         options={{
-          title: '생명수',
-          tabBarIcon: ({ color, size }) => <Ionicons name="list" size={size} color={color} />,
+          title: '성과',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'stats-chart' : 'stats-chart-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="customers"
         options={{
-          title: '고객DB',
-          tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
+          title: '고객',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="route"
         options={{
           title: '동선',
-          tabBarIcon: ({ color, size }) => <Ionicons name="location" size={size} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'location' : 'location-outline'}
+              size={22}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen

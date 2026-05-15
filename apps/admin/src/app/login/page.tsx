@@ -48,7 +48,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex w-16 h-16 rounded-2xl bg-blue-600 items-center justify-center text-white text-3xl font-bold mb-4">
+          <div className="inline-flex w-16 h-16 rounded-2xl bg-teal-600 items-center justify-center text-white text-3xl font-bold mb-4">
             M
           </div>
           <h1 className="text-2xl font-bold text-slate-900">MET System</h1>
@@ -61,7 +61,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => setMode('signin')}
               className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${
-                mode === 'signin' ? 'bg-blue-600 text-white' : 'text-slate-600'
+                mode === 'signin' ? 'bg-teal-600 text-white' : 'text-slate-600'
               }`}>
               로그인
             </button>
@@ -69,7 +69,7 @@ export default function LoginPage() {
               type="button"
               onClick={() => setMode('signup')}
               className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${
-                mode === 'signup' ? 'bg-blue-600 text-white' : 'text-slate-600'
+                mode === 'signup' ? 'bg-teal-600 text-white' : 'text-slate-600'
               }`}>
               회원가입
             </button>
@@ -83,7 +83,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-teal-500"
               />
             </div>
 
@@ -94,7 +94,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="6자 이상"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-teal-500"
               />
             </div>
 
@@ -107,7 +107,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold rounded-xl transition">
+              className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold rounded-xl transition">
               {loading ? '처리 중...' : mode === 'signin' ? '로그인하기' : '가입하기'}
             </button>
           </form>

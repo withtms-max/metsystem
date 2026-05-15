@@ -21,14 +21,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomers } from '@/hooks/use-customers';
+import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
 
 const GRADES: ('전체' | CustomerGrade)[] = ['전체', 'A', 'B', 'C', 'D'];
-const GRADE_COLOR: Record<CustomerGrade, string> = {
-  A: '#EF4444',
-  B: '#F59E0B',
-  C: '#3B82F6',
-  D: '#94A3B8',
-};
 
 function formatActivity(dateStr: string): string {
   const updated = new Date(dateStr).getTime();
@@ -66,18 +61,17 @@ export default function CustomersScreen() {
 
   const handleExportMyData = () => {
     if (Platform.OS !== 'web') {
-      Alert.alert(
-        'CSV 다운로드',
-        '현재 웹 브라우저에서만 지원돼요. 모바일 네이티브 앱 다운로드는 다음 업데이트 예정입니다.',
-      );
+      Alert.alert('CSV', '현재 웹 브라우저에서만 지원돼요.');
       return;
     }
     if (customers.length === 0) {
       Alert.alert('알림', '내보낼 고객이 없어요');
       return;
     }
-    const csv = buildNaturalMarketCsv(customers);
-    downloadCsv(`내추럴마켓리스트_${timestampForFilename()}.csv`, csv);
+    downloadCsv(
+      `내추럴마켓리스트_${timestampForFilename()}.csv`,
+      buildNaturalMarketCsv(customers),
+    );
   };
 
   const handleDownloadTemplate = () => {
@@ -85,7 +79,6 @@ export default function CustomersScreen() {
       Alert.alert('빈 양식', '모바일 네이티브에서는 다음 업데이트에 지원 예정입니다.');
       return;
     }
-    // admin (3000)의 public 폴더에 둔 원본 양식 다운로드
     const url = `${window.location.protocol}//${window.location.hostname}:3000/templates/MET_고객관리_통합양식.xlsx`;
     const link = document.createElement('a');
     link.href = url;
@@ -97,34 +90,40 @@ export default function CustomersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>👥 내 고객</Text>
-          <Text style={styles.headerSub}>총 {customers.length}명</Text>
+    <View style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.headerWrap}>
+        <View style={styles.headerInner}>
+          <View>
+            <Text style={styles.headerTitle}>고객</Text>
+            <Text style={styles.headerSub}>총 {customers.length}명</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.iconBtn} onPress={handleDownloadTemplate}>
+              <Ionicons name="document-outline" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={handleExportMyData}>
+              <Ionicons name="download-outline" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => router.push('/customer/new')}>
+              <Ionicons name="add" size={18} color={Palette.graphite} />
+              <Text style={styles.addBtnText}>고객 추가</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.exportRow}>
-          <TouchableOpacity style={styles.exportBtn} onPress={handleExportMyData}>
-            <Ionicons name="download-outline" size={14} color="#0F172A" />
-            <Text style={styles.exportText}>내 데이터</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.templateBtn} onPress={handleDownloadTemplate}>
-            <Ionicons name="document-outline" size={14} color="#FFFFFF" />
-            <Text style={styles.templateText}>빈 양식</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      <View style={styles.searchBox}>
-        <Ionicons name="search" size={18} color="#94A3B8" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="이름 또는 회사 검색"
-          placeholderTextColor="#94A3B8"
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={16} color={Palette.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="이름 또는 회사 검색"
+            placeholderTextColor={Palette.textMuted}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+      </SafeAreaView>
 
       <View style={styles.filterRow}>
         {GRADES.map((g) => (
@@ -133,7 +132,7 @@ export default function CustomersScreen() {
             onPress={() => setSelectedGrade(g)}
             style={[styles.chip, selectedGrade === g && styles.chipActive]}>
             <Text style={[styles.chipText, selectedGrade === g && styles.chipTextActive]}>
-              {g === '전체' ? g : `${g}급`}
+              {g === '전체' ? g : `${g}등급`}
             </Text>
           </TouchableOpacity>
         ))}
@@ -147,181 +146,214 @@ export default function CustomersScreen() {
               onPress={() => setSelectedRegion(r)}
               style={[styles.chip, selectedRegion === r && styles.chipActiveAlt]}>
               <Text style={[styles.chipText, selectedRegion === r && styles.chipTextActive]}>
-                📍 {r}
+                {r === '전체' ? '전체' : `📍 ${r}`}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
+      <Text style={styles.listLabel}>전체 {customers.length}</Text>
+
       {error ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>⚠️</Text>
+          <Ionicons name="warning-outline" size={48} color={Palette.orange} />
           <Text style={styles.emptyText}>{error.message}</Text>
-          <Text style={styles.emptyHint}>Supabase 연결 또는 환경변수 확인이 필요해요</Text>
+          <Text style={styles.emptyHint}>Supabase 연결 또는 환경변수 확인 필요</Text>
         </View>
       ) : isLoading ? (
         <View style={styles.empty}>
-          <ActivityIndicator size="large" color="#2563EB" />
+          <ActivityIndicator size="large" color={Palette.primary} />
         </View>
       ) : customers.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>👋</Text>
+          <Ionicons name="people-outline" size={48} color={Palette.textMuted} />
           <Text style={styles.emptyText}>아직 등록된 고객이 없어요</Text>
-          <Text style={styles.emptyHint}>오른쪽 아래 + 버튼으로 첫 고객을 등록해보세요</Text>
+          <Text style={styles.emptyHint}>우측 상단 + 버튼으로 첫 고객을 등록해보세요</Text>
         </View>
       ) : (
         <FlatList
           data={customers}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.customerCard}
-              onPress={() => router.push({ pathname: '/customer/[id]', params: { id: item.id } })}>
-              <View
-                style={[styles.gradeCircle, { backgroundColor: GRADE_COLOR[item.grade] }]}>
-                <Text style={styles.gradeCircleText}>{item.grade}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={styles.customerNameRow}>
-                  <Text style={styles.customerName}>{item.name}</Text>
-                  <Text style={styles.customerActivity}>{formatActivity(item.updated_at)}</Text>
-                </View>
-                {item.company && <Text style={styles.customerCompany}>{item.company}</Text>}
-                <View style={styles.customerMeta}>
-                  {item.region_tag && (
-                    <Text style={styles.customerRegion}>📍 {item.region_tag}</Text>
-                  )}
-                  {item.memo && (
-                    <Text style={styles.customerMemo} numberOfLines={1}>
-                      {item.memo}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            </TouchableOpacity>
-          )}
+          renderItem={({ item }) => <CustomerCard customer={item} onPress={() => router.push({ pathname: '/customer/[id]', params: { id: item.id } })} />}
         />
       )}
+    </View>
+  );
+}
 
-      <TouchableOpacity style={styles.fab} onPress={() => router.push('/customer/new')}>
-        <Ionicons name="add" size={28} color="#FFFFFF" />
+function CustomerCard({ customer, onPress }: { customer: Customer; onPress: () => void }) {
+  const grade = GradeColor[customer.grade];
+
+  return (
+    <TouchableOpacity style={styles.customerCard} onPress={onPress}>
+      <View style={styles.customerAvatar}>
+        <Text style={styles.customerAvatarText}>
+          {(customer.company ?? customer.name).slice(0, 1)}
+        </Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={styles.customerHeadRow}>
+          <Text style={styles.customerCompany} numberOfLines={1}>
+            {customer.company ?? customer.name}
+          </Text>
+          <Text style={styles.customerActivity}>{formatActivity(customer.updated_at)}</Text>
+        </View>
+        <Text style={styles.customerContact}>
+          담당자: {customer.name}
+          {customer.job_title ? ` ${customer.job_title}` : ''}
+        </Text>
+        <View style={styles.customerMeta}>
+          <View style={[styles.gradeChip, { backgroundColor: grade.bg }]}>
+            <View style={[styles.gradeDot, { backgroundColor: grade.dot }]} />
+            <Text style={[styles.gradeChipText, { color: grade.fg }]}>
+              {customer.grade}등급
+            </Text>
+          </View>
+          {customer.region_tag && (
+            <Text style={styles.metaSep}>·</Text>
+          )}
+          {customer.region_tag && (
+            <Text style={styles.regionText}>📍 {customer.region_tag}</Text>
+          )}
+        </View>
+      </View>
+      <TouchableOpacity style={styles.moreBtn} hitSlop={8}>
+        <Ionicons name="ellipsis-vertical" size={16} color={Palette.textMuted} />
       </TouchableOpacity>
-    </SafeAreaView>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F1F5F9' },
-  exportRow: { flexDirection: 'row', gap: 6 },
-  exportBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FBBF24',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  exportText: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
-  templateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#0F172A',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  templateText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
-  header: {
-    padding: 16,
-    paddingBottom: 8,
+  container: { flex: 1, backgroundColor: Palette.bg },
+
+  // Header
+  headerWrap: { backgroundColor: Palette.graphite, paddingBottom: 16 },
+  headerInner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#0F172A' },
-  headerSub: { fontSize: 13, color: '#64748B' },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
+  headerSub: { fontSize: 12, color: '#CBD5E1', marginTop: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+  },
+  addBtnText: { fontSize: 12, fontWeight: '700', color: Palette.graphite },
 
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: Radius.md,
+    gap: 8,
   },
-  searchInput: { flex: 1, marginLeft: 8, fontSize: 14, color: '#0F172A' },
+  searchInput: { flex: 1, fontSize: 13, color: '#FFFFFF' },
 
-  filterRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, marginBottom: 4 },
+  // Filters
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    gap: 6,
+  },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    margin: 4,
+    backgroundColor: Palette.card,
+    borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Palette.border,
   },
-  chipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  chipActiveAlt: { backgroundColor: '#10B981', borderColor: '#10B981' },
-  chipText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+  chipActive: { backgroundColor: Palette.graphite, borderColor: Palette.graphite },
+  chipActiveAlt: { backgroundColor: Palette.primary, borderColor: Palette.primary },
+  chipText: { fontSize: 12, fontWeight: '600', color: Palette.textSub },
   chipTextActive: { color: '#FFFFFF' },
 
-  list: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 80 },
+  listLabel: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    fontSize: 12,
+    color: Palette.textSub,
+    fontWeight: '600',
+  },
+
+  // List
+  list: { paddingHorizontal: 16, paddingBottom: 24 },
   customerCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Palette.card,
     padding: 14,
-    borderRadius: 14,
+    borderRadius: Radius.lg,
     marginBottom: 8,
     alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    ...Shadow.card,
   },
-  gradeCircle: {
+  customerAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: Palette.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  gradeCircleText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
-  customerNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  customerName: { fontWeight: '700', fontSize: 15, color: '#0F172A' },
-  customerActivity: { fontSize: 11, color: '#94A3B8' },
-  customerCompany: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  customerMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 },
-  customerRegion: { fontSize: 11, color: '#10B981', fontWeight: '600' },
-  customerMemo: { fontSize: 11, color: '#94A3B8', flex: 1 },
+  customerAvatarText: { color: Palette.primaryDeep, fontWeight: '700', fontSize: 16 },
 
-  empty: {
-    flex: 1,
-    justifyContent: 'center',
+  customerHeadRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 32,
   },
-  emptyEmoji: { fontSize: 56, marginBottom: 12 },
-  emptyText: { fontSize: 16, fontWeight: '700', color: '#475569', textAlign: 'center' },
-  emptyHint: { fontSize: 13, color: '#94A3B8', marginTop: 8, textAlign: 'center' },
+  customerCompany: { fontSize: 15, fontWeight: '700', color: Palette.textMain, flex: 1 },
+  customerActivity: { fontSize: 11, color: Palette.textMuted, marginLeft: 8 },
+  customerContact: { fontSize: 12, color: Palette.textSub, marginTop: 2 },
 
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#2563EB',
-    justifyContent: 'center',
+  customerMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 6 },
+  gradeChip: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
   },
+  gradeDot: { width: 6, height: 6, borderRadius: 3 },
+  gradeChipText: { fontSize: 11, fontWeight: '600' },
+  metaSep: { color: Palette.textMuted, fontSize: 11 },
+  regionText: { fontSize: 11, color: Palette.textSub, fontWeight: '500' },
+
+  moreBtn: { padding: 4 },
+
+  // Empty
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  emptyText: { fontSize: 14, fontWeight: '600', color: Palette.textMain, marginTop: 16 },
+  emptyHint: { fontSize: 12, color: Palette.textSub, marginTop: 6, textAlign: 'center' },
 });
