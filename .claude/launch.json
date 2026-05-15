@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin (Next.js 관리자 웹)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "admin", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "mobile (Expo 모바일 앱 - Metro/Web)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "mobile", "dev"],
+      "port": 8081
+    }
+  ]
+}
