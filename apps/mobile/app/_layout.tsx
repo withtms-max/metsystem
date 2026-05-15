@@ -57,6 +57,7 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ headerShown: false }} />
             <Stack.Screen name="customer/new" options={{ headerShown: false, presentation: 'modal' }} />
             <Stack.Screen name="customer/[id]" options={{ headerShown: false }} />
+            <Stack.Screen name="swipe-ta" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
         </AuthGate>

@@ -56,6 +56,15 @@ export default function PipelineScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        {taTargetCount > 0 && (
+          <TouchableOpacity
+            style={styles.swipeBtn}
+            onPress={() => router.push('/swipe-ta')}>
+            <Text style={styles.swipeBtnEmoji}>📞</Text>
+            <Text style={styles.swipeBtnText}>스와이프 TA</Text>
+            <Text style={styles.swipeBtnCount}>{taTargetCount}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {error ? (
@@ -157,6 +166,26 @@ export default function PipelineScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
+  swipeBtn: {
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  swipeBtnEmoji: { fontSize: 18 },
+  swipeBtnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
+  swipeBtnCount: {
+    color: '#FBBF24',
+    fontWeight: '800',
+    fontSize: 13,
+    backgroundColor: 'rgba(251,191,36,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
