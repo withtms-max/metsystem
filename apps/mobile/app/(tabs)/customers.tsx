@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
-  buildCsv,
+  buildNaturalMarketCsv,
   downloadCsv,
   timestampForFilename,
   type Customer,
@@ -64,7 +64,7 @@ export default function CustomersScreen() {
     return ['전체', ...Array.from(set).sort()];
   }, [customers]);
 
-  const handleExport = () => {
+  const handleExportMyData = () => {
     if (Platform.OS !== 'web') {
       Alert.alert(
         'CSV 다운로드',
@@ -76,22 +76,24 @@ export default function CustomersScreen() {
       Alert.alert('알림', '내보낼 고객이 없어요');
       return;
     }
-    const csv = buildCsv<Customer>(customers, [
-      { header: '이름', accessor: (c) => c.name },
-      { header: '등급', accessor: (c) => c.grade },
-      { header: '전화번호', accessor: (c) => c.phone },
-      { header: '이메일', accessor: (c) => c.email },
-      { header: '회사', accessor: (c) => c.company },
-      { header: '직함', accessor: (c) => c.job_title },
-      { header: '주소', accessor: (c) => c.address },
-      { header: '지역태그', accessor: (c) => c.region_tag },
-      { header: '계약일', accessor: (c) => c.contract_date },
-      { header: '생일', accessor: (c) => c.birthday },
-      { header: '메모', accessor: (c) => c.memo },
-      { header: '등록일', accessor: (c) => c.created_at?.slice(0, 10) ?? '' },
-      { header: '최근수정', accessor: (c) => c.updated_at?.slice(0, 10) ?? '' },
-    ]);
-    downloadCsv(`고객DB_${timestampForFilename()}.csv`, csv);
+    const csv = buildNaturalMarketCsv(customers);
+    downloadCsv(`내추럴마켓리스트_${timestampForFilename()}.csv`, csv);
+  };
+
+  const handleDownloadTemplate = () => {
+    if (Platform.OS !== 'web') {
+      Alert.alert('빈 양식', '모바일 네이티브에서는 다음 업데이트에 지원 예정입니다.');
+      return;
+    }
+    // admin (3000)의 public 폴더에 둔 원본 양식 다운로드
+    const url = `${window.location.protocol}//${window.location.hostname}:3000/templates/MET_고객관리_통합양식.xlsx`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'MET_고객관리_통합양식.xlsx';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -101,10 +103,16 @@ export default function CustomersScreen() {
           <Text style={styles.headerTitle}>👥 내 고객</Text>
           <Text style={styles.headerSub}>총 {customers.length}명</Text>
         </View>
-        <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-          <Ionicons name="download-outline" size={16} color="#0F172A" />
-          <Text style={styles.exportText}>엑셀</Text>
-        </TouchableOpacity>
+        <View style={styles.exportRow}>
+          <TouchableOpacity style={styles.exportBtn} onPress={handleExportMyData}>
+            <Ionicons name="download-outline" size={14} color="#0F172A" />
+            <Text style={styles.exportText}>내 데이터</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.templateBtn} onPress={handleDownloadTemplate}>
+            <Ionicons name="document-outline" size={14} color="#FFFFFF" />
+            <Text style={styles.templateText}>빈 양식</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.searchBox}>
@@ -206,16 +214,27 @@ export default function CustomersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
+  exportRow: { flexDirection: 'row', gap: 6 },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#FBBF24',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 10,
   },
-  exportText: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
+  exportText: { fontSize: 12, fontWeight: '700', color: '#0F172A' },
+  templateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#0F172A',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  templateText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
   header: {
     padding: 16,
     paddingBottom: 8,
