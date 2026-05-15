@@ -25,7 +25,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     const inOnboarding = first === 'onboarding';
 
     if (!isAuthenticated && !inAuth) {
-      router.replace('/(auth)/login');
+      router.replace('/(auth)/welcome');
     } else if (isAuthenticated && !isOnboarded && !inOnboarding) {
       router.replace('/onboarding');
     } else if (isAuthenticated && isOnboarded && (inAuth || inOnboarding)) {
@@ -35,8 +35,14 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#2563EB" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#111827',
+        }}>
+        <ActivityIndicator size="large" color="#0D9488" />
       </View>
     );
   }

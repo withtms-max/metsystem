@@ -75,6 +75,39 @@ export default function LoginPage() {
             </button>
           </div>
 
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const supabase = createSupabaseBrowserClient();
+                const { error: err } = await supabase.auth.signInWithOAuth({
+                  provider: 'kakao',
+                  options: { redirectTo: `${window.location.origin}/` },
+                });
+                if (err) {
+                  if (err.message.includes('provider is not enabled')) {
+                    setError(
+                      '⚠️ 카카오 로그인 미설정. Supabase Dashboard → Authentication → Providers → Kakao 활성화 필요.',
+                    );
+                  } else {
+                    setError(err.message);
+                  }
+                }
+              } catch (e) {
+                setError(e instanceof Error ? e.message : '카카오 로그인 실패');
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-[#FEE500] hover:bg-[#FDD800] text-[#191919] font-bold rounded-xl transition mb-4">
+            <span className="text-base">💬</span>
+            <span className="text-sm">카카오로 시작하기</span>
+          </button>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400 font-medium">또는 이메일로</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1.5">이메일</label>

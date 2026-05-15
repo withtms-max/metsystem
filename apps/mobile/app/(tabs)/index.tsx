@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { currentMonthKey, type PipelineCardWithCustomer } from '@metsystem/shared';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
 import { useDailyCounts } from '@/hooks/use-daily-counts';
 import { usePipeline } from '@/hooks/use-pipeline';
 import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
+import { ProfileSheet } from '@/components/profile-sheet';
 
 function formatToday(): string {
   const d = new Date();
@@ -20,6 +21,7 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const { counts } = useDailyCounts();
   const { byStage } = usePipeline(currentMonthKey());
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const userName = profile?.name ?? '영업맨';
   const meetingsDone = counts.meeting;
@@ -43,14 +45,21 @@ export default function HomeScreen() {
       <SafeAreaView edges={['top']} style={styles.headerWrap}>
         <View style={styles.headerInner}>
           <View>
-            <Text style={styles.greeting}>안녕하세요, {userName}님 👋</Text>
+            <Text style={styles.greeting}>안녕하세요, {userName}님</Text>
             <Text style={styles.subGreeting}>{formatToday()}</Text>
           </View>
-          <TouchableOpacity style={styles.bellBtn}>
-            <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.iconBtn}>
+              <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.avatarBtn} onPress={() => setProfileOpen(true)}>
+              <Text style={styles.avatarBtnText}>{userName.slice(0, 1)}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
+
+      <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* 오늘의 미팅 카드 */}
@@ -256,6 +265,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Palette.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
 
   scroll: { padding: 16, paddingTop: 16 },
 
