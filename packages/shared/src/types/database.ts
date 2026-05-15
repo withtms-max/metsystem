@@ -162,9 +162,24 @@ export interface Database {
       };
       customers: {
         Row: CustomerRow;
-        Insert: Omit<CustomerRow, 'id' | 'created_at' | 'updated_at' | 'grade'> & {
+        Insert: {
           id?: string;
+          owner_id: string;
+          name: string;
+          phone?: string | null;
+          email?: string | null;
+          company?: string | null;
+          job_title?: string | null;
+          address?: string | null;
           grade?: CustomerGrade;
+          region_tag?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          source?: string | null;
+          profile_image_url?: string | null;
+          memo?: string | null;
+          contract_date?: string | null;
+          birthday?: string | null;
           created_at?: string;
           updated_at?: string;
         };

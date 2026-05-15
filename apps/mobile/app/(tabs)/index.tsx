@@ -1,14 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/lib/auth-context';
+import { useDailyCounts } from '@/hooks/use-daily-counts';
 
 export default function HomeScreen() {
-  const userName = '김영업';
-  const meetingsDone = 2;
+  const router = useRouter();
+  const { profile } = useAuth();
+  const { counts, isLoading } = useDailyCounts();
+
+  const userName = profile?.name ?? '영업맨';
+  const meetingsDone = counts.meeting;
   const meetingsGoal = 3;
-  const taDone = 7;
+  const taDone = counts.ta;
   const taGoal = 10;
-  const streakDays = 5;
+  const streakDays = profile?.current_streak ?? 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -21,9 +28,11 @@ export default function HomeScreen() {
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>🎯 오늘의 미팅</Text>
-            <View style={styles.streakBadge}>
-              <Text style={styles.streakText}>🔥 {streakDays}일 연속</Text>
-            </View>
+            {streakDays > 0 && (
+              <View style={styles.streakBadge}>
+                <Text style={styles.streakText}>🔥 {streakDays}일 연속</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.meetingBoxes}>
@@ -44,10 +53,11 @@ export default function HomeScreen() {
           </View>
 
           <Text style={styles.meetingStatus}>
-            {meetingsDone}/{meetingsGoal} 완료!{' '}
-            {meetingsDone < meetingsGoal
-              ? `${meetingsGoal - meetingsDone}명만 더 만나면 오늘 목표 달성!`
-              : '오늘 목표 달성! 🎉'}
+            {isLoading
+              ? '집계 중...'
+              : meetingsDone >= meetingsGoal
+              ? `${meetingsDone}/${meetingsGoal} 오늘 목표 달성! 🎉`
+              : `${meetingsDone}/${meetingsGoal} 완료! ${meetingsGoal - meetingsDone}명만 더 만나면 목표 달성!`}
           </Text>
         </View>
 
@@ -61,7 +71,12 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${(taDone / taGoal) * 100}%` }]} />
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${Math.min(100, (taDone / taGoal) * 100)}%` },
+              ]}
+            />
           </View>
 
           <View style={styles.statRow}>
@@ -74,61 +89,49 @@ export default function HomeScreen() {
             <View
               style={[
                 styles.progressFill,
-                { width: `${(meetingsDone / meetingsGoal) * 100}%`, backgroundColor: '#10B981' },
+                {
+                  width: `${Math.min(100, (meetingsDone / meetingsGoal) * 100)}%`,
+                  backgroundColor: '#10B981',
+                },
               ]}
             />
           </View>
-        </View>
 
-        <View style={[styles.card, styles.goldenCard]}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>⏰ 골든타임 알림</Text>
-          </View>
-
-          <View style={styles.goldenItem}>
-            <View style={styles.goldenIcon}>
-              <Text style={{ fontSize: 24 }}>🎂</Text>
+          {counts.contract > 0 && (
+            <View style={styles.contractRow}>
+              <Text style={styles.contractText}>🎉 오늘 계약 {counts.contract}건 성사!</Text>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.goldenName}>김철수 대표님</Text>
-              <Text style={styles.goldenSub}>계약 1주년까지 3일!</Text>
-            </View>
-            <TouchableOpacity style={styles.goldenBtn}>
-              <Text style={styles.goldenBtnText}>연락하기</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.goldenItem}>
-            <View style={styles.goldenIcon}>
-              <Text style={{ fontSize: 24 }}>🎉</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.goldenName}>이영희 부장님</Text>
-              <Text style={styles.goldenSub}>생일이 내일이에요!</Text>
-            </View>
-            <TouchableOpacity style={styles.goldenBtn}>
-              <Text style={styles.goldenBtnText}>안부톡</Text>
-            </TouchableOpacity>
-          </View>
+          )}
         </View>
 
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionBtn}>
-            <Text style={{ fontSize: 28 }}>🎙️</Text>
-            <Text style={styles.quickActionText}>음성 일지</Text>
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            onPress={() => router.push('/customer/new')}>
+            <Text style={{ fontSize: 28 }}>👤</Text>
+            <Text style={styles.quickActionText}>고객 추가</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionBtn}>
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            onPress={() => router.push('/(tabs)/customers')}>
             <Text style={{ fontSize: 28 }}>📇</Text>
-            <Text style={styles.quickActionText}>명함 스캔</Text>
+            <Text style={styles.quickActionText}>내 고객</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionBtn}>
-            <Text style={{ fontSize: 28 }}>📞</Text>
-            <Text style={styles.quickActionText}>스와이프 TA</Text>
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            onPress={() => router.push('/(tabs)/pipeline')}>
+            <Text style={{ fontSize: 28 }}>📋</Text>
+            <Text style={styles.quickActionText}>생명수</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.comingSoon}>
+          <Text style={styles.comingSoonTitle}>🚧 Coming Soon</Text>
+          <Text style={styles.comingSoonText}>
+            🎙️ 음성 일지 · 📇 명함 스캔 · 📞 스와이프 TA · ⏰ 골든타임 알림
+          </Text>
         </View>
 
         <View style={{ height: 24 }} />
@@ -202,27 +205,14 @@ const styles = StyleSheet.create({
   progressBar: { height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#2563EB' },
 
-  goldenCard: { backgroundColor: '#FFFBEB', borderLeftWidth: 4, borderLeftColor: '#F59E0B' },
-  goldenItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  goldenIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  contractRow: {
+    marginTop: 12,
+    padding: 10,
     backgroundColor: '#FEF3C7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  goldenName: { fontWeight: '700', color: '#0F172A', fontSize: 15 },
-  goldenSub: { color: '#92400E', fontSize: 13, marginTop: 2 },
-  goldenBtn: {
-    backgroundColor: '#F59E0B',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
     borderRadius: 10,
+    alignItems: 'center',
   },
-  goldenBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
-  divider: { height: 1, backgroundColor: '#FDE68A', marginVertical: 4 },
+  contractText: { color: '#92400E', fontWeight: '700' },
 
   quickActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   quickActionBtn: {
@@ -238,4 +228,16 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   quickActionText: { marginTop: 6, fontWeight: '700', color: '#334155', fontSize: 12 },
+
+  comingSoon: {
+    marginTop: 16,
+    padding: 14,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    borderStyle: 'dashed',
+  },
+  comingSoonTitle: { color: '#1E40AF', fontWeight: '700', fontSize: 13 },
+  comingSoonText: { color: '#3B82F6', fontSize: 12, marginTop: 4, lineHeight: 18 },
 });

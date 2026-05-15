@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import type { CustomerGrade } from '@metsystem/shared';
+import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -9,50 +12,55 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCustomers } from '@/hooks/use-customers';
 
-interface Customer {
-  id: string;
-  name: string;
-  grade: 'A' | 'B' | 'C' | 'D';
-  company: string;
-  region: string;
-  lastActivity: string;
-  memo: string;
+const GRADES: ('전체' | CustomerGrade)[] = ['전체', 'A', 'B', 'C', 'D'];
+const GRADE_COLOR: Record<CustomerGrade, string> = {
+  A: '#EF4444',
+  B: '#F59E0B',
+  C: '#3B82F6',
+  D: '#94A3B8',
+};
+
+function formatActivity(dateStr: string): string {
+  const updated = new Date(dateStr).getTime();
+  const diffDays = Math.floor((Date.now() - updated) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return '오늘';
+  if (diffDays === 1) return '어제';
+  if (diffDays < 7) return `${diffDays}일 전`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
+  return `${Math.floor(diffDays / 365)}년 전`;
 }
 
-const MOCK_CUSTOMERS: Customer[] = [
-  { id: '1', name: '김철수 대표', grade: 'A', company: '한빛산업', region: '판교', lastActivity: '3일 전', memo: '가지급금 상담중' },
-  { id: '2', name: '이영희 부장', grade: 'B', company: '삼성디스플레이', region: '강남', lastActivity: '1주 전', memo: '재무설계 관심' },
-  { id: '3', name: '박민수 이사', grade: 'A', company: '신한금융투자', region: '분당', lastActivity: '오늘', memo: '추천 고객, 응대 中' },
-  { id: '4', name: '정수영 사장', grade: 'A', company: '수영물산', region: '여의도', lastActivity: '2일 전', memo: '다음주 미팅 약속' },
-  { id: '5', name: '최영준 부장', grade: 'B', company: '롯데케미칼', region: '판교', lastActivity: '5일 전', memo: '관심 있음, 자료 요청' },
-  { id: '6', name: '강태호 대표', grade: 'A', company: '태호건설', region: '강남', lastActivity: '오늘', memo: '5/20 화 14시 미팅' },
-  { id: '7', name: '한지민 이사', grade: 'B', company: '지민컨설팅', region: '서초', lastActivity: '4일 전', memo: '제안서 검토 중' },
-  { id: '8', name: '오민호 부장', grade: 'C', company: '민호엔지니어링', region: '분당', lastActivity: '3주 전', memo: '예산 보류' },
-  { id: '9', name: '서지훈 대표', grade: 'A', company: '지훈홀딩스', region: '강남', lastActivity: '5일 전', memo: '🎉 계약 완료' },
-];
-
-const GRADES = ['전체', 'A', 'B', 'C', 'D'] as const;
-const REGIONS = ['전체', '판교', '강남', '분당', '서초', '여의도'];
-const GRADE_COLOR = { A: '#EF4444', B: '#F59E0B', C: '#3B82F6', D: '#94A3B8' };
-
 export default function CustomersScreen() {
+  const router = useRouter();
   const [selectedGrade, setSelectedGrade] = useState<(typeof GRADES)[number]>('전체');
   const [selectedRegion, setSelectedRegion] = useState('전체');
   const [search, setSearch] = useState('');
 
-  const filtered = MOCK_CUSTOMERS.filter((c) => {
-    if (selectedGrade !== '전체' && c.grade !== selectedGrade) return false;
-    if (selectedRegion !== '전체' && c.region !== selectedRegion) return false;
-    if (search && !c.name.includes(search) && !c.company.includes(search)) return false;
-    return true;
-  });
+  const filters = useMemo(
+    () => ({
+      grade: selectedGrade === '전체' ? undefined : selectedGrade,
+      regionTag: selectedRegion === '전체' ? undefined : selectedRegion,
+      search: search.trim() || undefined,
+    }),
+    [selectedGrade, selectedRegion, search],
+  );
+
+  const { customers, isLoading, error } = useCustomers(filters);
+
+  const regionOptions = useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach((c) => c.region_tag && set.add(c.region_tag));
+    return ['전체', ...Array.from(set).sort()];
+  }, [customers]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>👥 내 고객</Text>
-        <Text style={styles.headerSub}>총 {MOCK_CUSTOMERS.length}명</Text>
+        <Text style={styles.headerSub}>총 {customers.length}명</Text>
       </View>
 
       <View style={styles.searchBox}>
@@ -79,46 +87,73 @@ export default function CustomersScreen() {
         ))}
       </View>
 
-      <View style={styles.filterRow}>
-        {REGIONS.map((r) => (
-          <TouchableOpacity
-            key={r}
-            onPress={() => setSelectedRegion(r)}
-            style={[styles.chip, selectedRegion === r && styles.chipActiveAlt]}>
-            <Text style={[styles.chipText, selectedRegion === r && styles.chipTextActive]}>
-              📍 {r}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {regionOptions.length > 1 && (
+        <View style={styles.filterRow}>
+          {regionOptions.map((r) => (
+            <TouchableOpacity
+              key={r}
+              onPress={() => setSelectedRegion(r)}
+              style={[styles.chip, selectedRegion === r && styles.chipActiveAlt]}>
+              <Text style={[styles.chipText, selectedRegion === r && styles.chipTextActive]}>
+                📍 {r}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.customerCard}>
-            <View style={[styles.gradeCircle, { backgroundColor: GRADE_COLOR[item.grade] }]}>
-              <Text style={styles.gradeCircleText}>{item.grade}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.customerNameRow}>
-                <Text style={styles.customerName}>{item.name}</Text>
-                <Text style={styles.customerActivity}>{item.lastActivity}</Text>
+      {error ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>⚠️</Text>
+          <Text style={styles.emptyText}>{error.message}</Text>
+          <Text style={styles.emptyHint}>Supabase 연결 또는 환경변수 확인이 필요해요</Text>
+        </View>
+      ) : isLoading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator size="large" color="#2563EB" />
+        </View>
+      ) : customers.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>👋</Text>
+          <Text style={styles.emptyText}>아직 등록된 고객이 없어요</Text>
+          <Text style={styles.emptyHint}>오른쪽 아래 + 버튼으로 첫 고객을 등록해보세요</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={customers}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.customerCard}
+              onPress={() => router.push({ pathname: '/customer/[id]', params: { id: item.id } })}>
+              <View
+                style={[styles.gradeCircle, { backgroundColor: GRADE_COLOR[item.grade] }]}>
+                <Text style={styles.gradeCircleText}>{item.grade}</Text>
               </View>
-              <Text style={styles.customerCompany}>{item.company}</Text>
-              <View style={styles.customerMeta}>
-                <Text style={styles.customerRegion}>📍 {item.region}</Text>
-                <Text style={styles.customerMemo} numberOfLines={1}>
-                  {item.memo}
-                </Text>
+              <View style={{ flex: 1 }}>
+                <View style={styles.customerNameRow}>
+                  <Text style={styles.customerName}>{item.name}</Text>
+                  <Text style={styles.customerActivity}>{formatActivity(item.updated_at)}</Text>
+                </View>
+                {item.company && <Text style={styles.customerCompany}>{item.company}</Text>}
+                <View style={styles.customerMeta}>
+                  {item.region_tag && (
+                    <Text style={styles.customerRegion}>📍 {item.region_tag}</Text>
+                  )}
+                  {item.memo && (
+                    <Text style={styles.customerMemo} numberOfLines={1}>
+                      {item.memo}
+                    </Text>
+                  )}
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
+            </TouchableOpacity>
+          )}
+        />
+      )}
 
-      <TouchableOpacity style={styles.fab}>
+      <TouchableOpacity style={styles.fab} onPress={() => router.push('/customer/new')}>
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
     </SafeAreaView>
@@ -127,7 +162,13 @@ export default function CustomersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
-  header: { padding: 16, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  header: {
+    padding: 16,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
   headerTitle: { fontSize: 22, fontWeight: '700', color: '#0F172A' },
   headerSub: { fontSize: 13, color: '#64748B' },
 
@@ -183,6 +224,16 @@ const styles = StyleSheet.create({
   customerMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 8 },
   customerRegion: { fontSize: 11, color: '#10B981', fontWeight: '600' },
   customerMemo: { fontSize: 11, color: '#94A3B8', flex: 1 },
+
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyEmoji: { fontSize: 56, marginBottom: 12 },
+  emptyText: { fontSize: 16, fontWeight: '700', color: '#475569', textAlign: 'center' },
+  emptyHint: { fontSize: 13, color: '#94A3B8', marginTop: 8, textAlign: 'center' },
 
   fab: {
     position: 'absolute',
