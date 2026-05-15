@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import SignOutButton from './_components/sign-out-button';
 import InviteCodeCard from './_components/invite-code-card';
+import ExportButton from './_components/export-button';
 
 interface TeamStat {
   user_id: string;
@@ -115,6 +116,7 @@ export default async function Home() {
               {today} · ⚠️ 통계 데이터만 표시 (고객 정보는 영업맨 본인만 접근)
             </p>
           </div>
+          <ExportButton stats={stats} orgName={org?.name ?? 'org'} date={today} />
         </div>
 
         {org && <InviteCodeCard inviteCode={org.invite_code ?? ''} orgName={org.name} />}

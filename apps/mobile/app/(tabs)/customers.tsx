@@ -1,10 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { CustomerGrade } from '@metsystem/shared';
+import {
+  buildCsv,
+  downloadCsv,
+  timestampForFilename,
+  type Customer,
+  type CustomerGrade,
+} from '@metsystem/shared';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -56,11 +64,47 @@ export default function CustomersScreen() {
     return ['전체', ...Array.from(set).sort()];
   }, [customers]);
 
+  const handleExport = () => {
+    if (Platform.OS !== 'web') {
+      Alert.alert(
+        'CSV 다운로드',
+        '현재 웹 브라우저에서만 지원돼요. 모바일 네이티브 앱 다운로드는 다음 업데이트 예정입니다.',
+      );
+      return;
+    }
+    if (customers.length === 0) {
+      Alert.alert('알림', '내보낼 고객이 없어요');
+      return;
+    }
+    const csv = buildCsv<Customer>(customers, [
+      { header: '이름', accessor: (c) => c.name },
+      { header: '등급', accessor: (c) => c.grade },
+      { header: '전화번호', accessor: (c) => c.phone },
+      { header: '이메일', accessor: (c) => c.email },
+      { header: '회사', accessor: (c) => c.company },
+      { header: '직함', accessor: (c) => c.job_title },
+      { header: '주소', accessor: (c) => c.address },
+      { header: '지역태그', accessor: (c) => c.region_tag },
+      { header: '계약일', accessor: (c) => c.contract_date },
+      { header: '생일', accessor: (c) => c.birthday },
+      { header: '메모', accessor: (c) => c.memo },
+      { header: '등록일', accessor: (c) => c.created_at?.slice(0, 10) ?? '' },
+      { header: '최근수정', accessor: (c) => c.updated_at?.slice(0, 10) ?? '' },
+    ]);
+    downloadCsv(`고객DB_${timestampForFilename()}.csv`, csv);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>👥 내 고객</Text>
-        <Text style={styles.headerSub}>총 {customers.length}명</Text>
+        <View>
+          <Text style={styles.headerTitle}>👥 내 고객</Text>
+          <Text style={styles.headerSub}>총 {customers.length}명</Text>
+        </View>
+        <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+          <Ionicons name="download-outline" size={16} color="#0F172A" />
+          <Text style={styles.exportText}>엑셀</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.searchBox}>
@@ -162,6 +206,16 @@ export default function CustomersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
+  exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FBBF24',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  exportText: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
   header: {
     padding: 16,
     paddingBottom: 8,
