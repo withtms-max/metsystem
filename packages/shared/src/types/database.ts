@@ -31,213 +31,205 @@ export type GoldenTimeRuleType =
   | 'custom'
   | 'follow_up';
 
+// ============================================
+// Row 타입 (DB SELECT 결과)
+// ============================================
+
+export interface OrganizationRow {
+  id: string;
+  name: string;
+  industry: string | null;
+  subscription_plan: string;
+  subscription_expires_at: string | null;
+  daily_ta_goal: number;
+  daily_meeting_goal: number;
+  invite_code: string | null;
+  created_at: string;
+}
+
+export interface UserRow {
+  id: string;
+  organization_id: string | null;
+  role: UserRole;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  profile_image_url: string | null;
+  current_streak: number;
+  best_streak: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface CustomerRow {
+  id: string;
+  owner_id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  company: string | null;
+  job_title: string | null;
+  address: string | null;
+  grade: CustomerGrade;
+  region_tag: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  source: string | null;
+  profile_image_url: string | null;
+  memo: string | null;
+  contract_date: string | null;
+  birthday: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActivityLogRow {
+  id: string;
+  user_id: string;
+  customer_id: string | null;
+  organization_id: string;
+  activity_type: ActivityType;
+  status: ActivityStatus | null;
+  duration_seconds: number | null;
+  mood: ActivityMood | null;
+  note: string | null;
+  source: string | null;
+  activity_date: string;
+  created_at: string;
+}
+
+export interface PipelineCardRow {
+  id: string;
+  user_id: string;
+  customer_id: string;
+  month_key: string;
+  stage: PipelineStage;
+  sort_order: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoldenTimeRuleRow {
+  id: string;
+  user_id: string;
+  customer_id: string | null;
+  rule_type: GoldenTimeRuleType;
+  trigger_date: string | null;
+  recurrence: string | null;
+  days_before: number;
+  message_template: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ManagerActivityStatsRow {
+  organization_id: string;
+  user_id: string;
+  salesperson_name: string;
+  activity_date: string;
+  activity_type: ActivityType;
+  count: number;
+  completed_count: number;
+}
+
+// ============================================
+// Supabase Database 타입 — 명시적 Insert/Update 분리
+// ============================================
+
 export interface Database {
   public: {
     Tables: {
       organizations: {
-        Row: {
-          id: string;
-          name: string;
-          industry: string | null;
-          subscription_plan: string;
-          subscription_expires_at: string | null;
-          daily_ta_goal: number;
-          daily_meeting_goal: number;
-          invite_code: string | null;
-          created_at: string;
-        };
-        Insert: {
+        Row: OrganizationRow;
+        Insert: Omit<OrganizationRow, 'id' | 'created_at'> & {
           id?: string;
-          name: string;
-          industry?: string | null;
-          subscription_plan?: string;
-          subscription_expires_at?: string | null;
-          daily_ta_goal?: number;
-          daily_meeting_goal?: number;
-          invite_code?: string | null;
           created_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['organizations']['Insert']>;
+        Update: Partial<OrganizationRow>;
+        Relationships: [];
       };
       users: {
-        Row: {
-          id: string;
-          organization_id: string | null;
-          role: UserRole;
-          name: string;
-          phone: string | null;
-          email: string | null;
-          profile_image_url: string | null;
-          current_streak: number;
-          best_streak: number;
-          is_active: boolean;
-          created_at: string;
-        };
-        Insert: {
-          id: string;
-          organization_id?: string | null;
-          role: UserRole;
-          name: string;
-          phone?: string | null;
-          email?: string | null;
-          profile_image_url?: string | null;
+        Row: UserRow;
+        Insert: Omit<UserRow, 'created_at' | 'current_streak' | 'best_streak' | 'is_active'> & {
+          created_at?: string;
           current_streak?: number;
           best_streak?: number;
           is_active?: boolean;
-          created_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['users']['Insert']>;
+        Update: Partial<UserRow>;
+        Relationships: [];
       };
       customers: {
-        Row: {
-          id: string;
-          owner_id: string;
-          name: string;
-          phone: string | null;
-          email: string | null;
-          company: string | null;
-          job_title: string | null;
-          address: string | null;
-          grade: CustomerGrade;
-          region_tag: string | null;
-          latitude: number | null;
-          longitude: number | null;
-          source: string | null;
-          profile_image_url: string | null;
-          memo: string | null;
-          contract_date: string | null;
-          birthday: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
+        Row: CustomerRow;
+        Insert: Omit<CustomerRow, 'id' | 'created_at' | 'updated_at' | 'grade'> & {
           id?: string;
-          owner_id: string;
-          name: string;
-          phone?: string | null;
-          email?: string | null;
-          company?: string | null;
-          job_title?: string | null;
-          address?: string | null;
           grade?: CustomerGrade;
-          region_tag?: string | null;
-          latitude?: number | null;
-          longitude?: number | null;
-          source?: string | null;
-          profile_image_url?: string | null;
-          memo?: string | null;
-          contract_date?: string | null;
-          birthday?: string | null;
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['customers']['Insert']>;
+        Update: Partial<CustomerRow>;
+        Relationships: [];
       };
       activity_logs: {
-        Row: {
-          id: string;
-          user_id: string;
-          customer_id: string | null;
-          organization_id: string;
-          activity_type: ActivityType;
-          status: ActivityStatus | null;
-          duration_seconds: number | null;
-          mood: ActivityMood | null;
-          note: string | null;
-          source: string | null;
-          activity_date: string;
-          created_at: string;
-        };
-        Insert: {
+        Row: ActivityLogRow;
+        Insert: Omit<ActivityLogRow, 'id' | 'created_at' | 'activity_date'> & {
           id?: string;
-          user_id: string;
-          customer_id?: string | null;
-          organization_id: string;
-          activity_type: ActivityType;
-          status?: ActivityStatus | null;
-          duration_seconds?: number | null;
-          mood?: ActivityMood | null;
-          note?: string | null;
-          source?: string | null;
           activity_date?: string;
           created_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['activity_logs']['Insert']>;
+        Update: Partial<ActivityLogRow>;
+        Relationships: [];
       };
       pipeline_cards: {
-        Row: {
-          id: string;
-          user_id: string;
-          customer_id: string;
-          month_key: string;
-          stage: PipelineStage;
-          sort_order: number;
-          note: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
+        Row: PipelineCardRow;
+        Insert: Omit<PipelineCardRow, 'id' | 'created_at' | 'updated_at' | 'stage' | 'sort_order'> & {
           id?: string;
-          user_id: string;
-          customer_id: string;
-          month_key: string;
           stage?: PipelineStage;
           sort_order?: number;
-          note?: string | null;
           created_at?: string;
           updated_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['pipeline_cards']['Insert']>;
+        Update: Partial<PipelineCardRow>;
+        Relationships: [];
       };
       golden_time_rules: {
-        Row: {
-          id: string;
-          user_id: string;
-          customer_id: string | null;
-          rule_type: GoldenTimeRuleType;
-          trigger_date: string | null;
-          recurrence: string | null;
-          days_before: number;
-          message_template: string | null;
-          is_active: boolean;
-          created_at: string;
-        };
-        Insert: {
+        Row: GoldenTimeRuleRow;
+        Insert: Omit<GoldenTimeRuleRow, 'id' | 'created_at' | 'is_active' | 'days_before'> & {
           id?: string;
-          user_id: string;
-          customer_id?: string | null;
-          rule_type: GoldenTimeRuleType;
-          trigger_date?: string | null;
-          recurrence?: string | null;
-          days_before?: number;
-          message_template?: string | null;
           is_active?: boolean;
+          days_before?: number;
           created_at?: string;
         };
-        Update: Partial<Database['public']['Tables']['golden_time_rules']['Insert']>;
+        Update: Partial<GoldenTimeRuleRow>;
+        Relationships: [];
       };
     };
     Views: {
       manager_activity_stats: {
-        Row: {
-          organization_id: string;
-          user_id: string;
-          salesperson_name: string;
-          activity_date: string;
-          activity_type: ActivityType;
-          count: number;
-          completed_count: number;
-        };
+        Row: ManagerActivityStatsRow;
+        Relationships: [];
       };
     };
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }
 
-// 편의 타입 alias
-export type Organization = Database['public']['Tables']['organizations']['Row'];
-export type User = Database['public']['Tables']['users']['Row'];
-export type Customer = Database['public']['Tables']['customers']['Row'];
-export type ActivityLog = Database['public']['Tables']['activity_logs']['Row'];
-export type PipelineCard = Database['public']['Tables']['pipeline_cards']['Row'];
-export type GoldenTimeRule = Database['public']['Tables']['golden_time_rules']['Row'];
-export type ManagerActivityStats = Database['public']['Views']['manager_activity_stats']['Row'];
+// ============================================
+// 편의 alias
+// ============================================
+
+export type Organization = OrganizationRow;
+export type User = UserRow;
+export type Customer = CustomerRow;
+export type ActivityLog = ActivityLogRow;
+export type PipelineCard = PipelineCardRow;
+export type GoldenTimeRule = GoldenTimeRuleRow;
+export type ManagerActivityStats = ManagerActivityStatsRow;
+
+export type CustomerInsert = Database['public']['Tables']['customers']['Insert'];
+export type CustomerUpdate = Database['public']['Tables']['customers']['Update'];
+export type ActivityLogInsert = Database['public']['Tables']['activity_logs']['Insert'];
+export type PipelineCardInsert = Database['public']['Tables']['pipeline_cards']['Insert'];

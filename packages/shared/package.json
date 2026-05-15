@@ -16,7 +16,7 @@
     "clean": "rm -rf node_modules"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.46.2"
+    "@supabase/supabase-js": "2.45.6"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

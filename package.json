@@ -21,5 +21,13 @@
     "node": ">=20",
     "pnpm": ">=9"
   },
-  "packageManager": "pnpm@11.1.2"
+  "packageManager": "pnpm@11.1.2",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "sharp",
+      "unrs-resolver",
+      "@tailwindcss/oxide",
+      "esbuild"
+    ]
+  }
 }
