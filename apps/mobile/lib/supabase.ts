@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { createSupabaseClient } from '@metsystem/shared';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -14,9 +15,13 @@ if (!isSupabaseConfigured) {
   );
 }
 
+// 네이티브(iOS/Android)는 AsyncStorage, 웹은 Supabase 기본(localStorage) 사용
+// 웹에서 AsyncStorage를 강제하면 SSR 단계에서 window 참조 에러 발생
+const storage = Platform.OS === 'web' ? undefined : AsyncStorage;
+
 export const supabase = createSupabaseClient({
   url: url ?? 'https://placeholder.supabase.co',
   anonKey: anonKey ?? 'placeholder-key',
-  storage: AsyncStorage,
-  detectSessionInUrl: false,
+  storage,
+  detectSessionInUrl: Platform.OS === 'web',
 });

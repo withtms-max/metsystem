@@ -59,64 +59,46 @@ export interface OnboardingInput {
   industry?: string;
 }
 
+/**
+ * 온보딩 완료 — SECURITY DEFINER RPC 함수 호출.
+ * 이전: 직접 .insert() 호출 → RLS RETURNING 정책 충돌 (42501).
+ * 현재: 서버 사이드 함수가 RLS 우회하며 organizations + users를 원자적으로 생성.
+ */
 export async function completeOnboarding(
   supabase: MetSupabaseClient,
   authUserId: string,
   email: string | null,
   input: OnboardingInput,
 ): Promise<User> {
-  let organizationId: string | null = null;
-
   if (input.role === 'salesperson') {
     if (!input.inviteCode) throw new Error('초대 코드가 필요해요');
-    const { data: org, error: orgErr } = await supabase
-      .from('organizations')
-      .select('id')
-      .eq('invite_code', input.inviteCode.toUpperCase())
-      .maybeSingle();
-    if (orgErr) throw orgErr;
-    if (!org) throw new Error('유효하지 않은 초대 코드예요');
-    organizationId = (org as { id: string }).id;
-  } else {
-    if (!input.organizationName) throw new Error('센터명을 입력해주세요');
-    const inviteCode = generateInviteCode();
-    const { data: org, error: orgErr } = await supabase
-      .from('organizations')
+
+    const { error } = await supabase.rpc('join_organization_with_invite_code', {
+      code: input.inviteCode.toUpperCase(),
+      user_name: input.name,
+      user_phone: input.phone ?? null,
+      user_email: email,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert({
-        name: input.organizationName,
-        industry: input.industry ?? null,
-        invite_code: inviteCode,
-      } as any)
-      .select('id')
-      .single();
-    if (orgErr) throw orgErr;
-    organizationId = (org as { id: string }).id;
+    } as any);
+    if (error) throw error;
+  } else if (input.role === 'manager' || input.role === 'owner') {
+    if (!input.organizationName) throw new Error('센터명을 입력해주세요');
+
+    const { error } = await supabase.rpc('create_organization_with_owner', {
+      org_name: input.organizationName,
+      org_industry: input.industry ?? null,
+      user_name: input.name,
+      user_phone: input.phone ?? null,
+      user_email: email,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    if (error) throw error;
+  } else {
+    throw new Error(`알 수 없는 역할: ${input.role}`);
   }
 
-  const { data: profile, error: userErr } = await supabase
-    .from('users')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert({
-      id: authUserId,
-      organization_id: organizationId,
-      role: input.role,
-      name: input.name,
-      phone: input.phone ?? null,
-      email,
-    } as any)
-    .select('*')
-    .single();
-
-  if (userErr) throw userErr;
-  return profile as User;
-}
-
-function generateInviteCode(length = 6): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let out = '';
-  for (let i = 0; i < length; i++) {
-    out += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return out;
+  // 함수 완료 후 새로 생성된 profile 가져오기
+  const profile = await loadProfile(supabase, authUserId);
+  if (!profile) throw new Error('가입 후 프로필을 찾을 수 없어요');
+  return profile;
 }

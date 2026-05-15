@@ -7,6 +7,26 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 const INDUSTRIES = ['보험 GA', '부동산', '자동차', '제약', 'B2B 영업', '기타'];
 
+function extractErrorMessage(e: unknown): string {
+  if (!e) return '알 수 없는 오류';
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'object' && e !== null) {
+    const o = e as { message?: string; details?: string; hint?: string; code?: string };
+    if (o.message) {
+      const parts = [o.message];
+      if (o.code) parts.push(`(code: ${o.code})`);
+      if (o.hint) parts.push(`hint: ${o.hint}`);
+      return parts.join(' ');
+    }
+    try {
+      return JSON.stringify(e);
+    } catch {
+      return String(e);
+    }
+  }
+  return String(e);
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -25,10 +45,25 @@ export default function OnboardingPage() {
     setLoading(true);
     try {
       const supabase = createSupabaseBrowserClient();
+
+      // 디버그: 세션과 사용자 상태 출력
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      console.log('[onboarding] session exists?', !!session);
+      console.log('[onboarding] session.user.id:', session?.user?.id);
+      console.log(
+        '[onboarding] access_token prefix:',
+        session?.access_token?.slice(0, 30) + '...',
+      );
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      console.log('[onboarding] getUser() returned:', user?.id, user?.email);
+
       if (!user) {
+        console.warn('[onboarding] 사용자 없음 → /login으로 리다이렉트');
         router.push('/login');
         return;
       }
@@ -41,7 +76,9 @@ export default function OnboardingPage() {
       router.refresh();
       router.push('/');
     } catch (e) {
-      setError(e instanceof Error ? e.message : '오류 발생');
+      setError(extractErrorMessage(e));
+      console.error('[onboarding] error:', e);
+      console.error('[onboarding] error type:', typeof e, e?.constructor?.name);
     } finally {
       setLoading(false);
     }
