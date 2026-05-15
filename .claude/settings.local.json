@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(Write-Output \"PWD: $\\(Get-Location\\)\"; Get-ChildItem -Force -Name)",
+      "Bash(tail -n 20 \"/c/Users/이병길/AppData/Local/Temp/claude/C--Users-----OneDrive-Desktop-metsystem/6daa9e09-c035-4478-9e31-e5df883a83a0/tasks/bild41ck1.output\" 2>/dev/null || tail -n 20 pnpm-install.log 2>/dev/null)"
+    ]
+  }
+}
