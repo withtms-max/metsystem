@@ -1,5 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { listActivities, type ActivityLog, type Customer, type CustomerGrade } from '@metsystem/shared';
+import {
+  currentMonthKey,
+  formatMonthKeyKorean,
+  listActivities,
+  type ActivityLog,
+  type Customer,
+  type CustomerGrade,
+} from '@metsystem/shared';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -13,7 +20,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/lib/auth-context';
 import { useCustomers } from '@/hooks/use-customers';
+import { usePipeline } from '@/hooks/use-pipeline';
 import { supabase } from '@/lib/supabase';
 
 const GRADE_COLOR: Record<CustomerGrade, string> = {
@@ -26,10 +35,15 @@ const GRADE_COLOR: Record<CustomerGrade, string> = {
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { authUser } = useAuth();
   const { customers, update, remove, isLoading } = useCustomers();
+  const monthKey = currentMonthKey();
+  const { cards, add: addToPipeline } = usePipeline(monthKey);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [pipelineLoading, setPipelineLoading] = useState(false);
 
   const customer: Customer | undefined = customers.find((c) => c.id === id);
+  const alreadyInPipeline = cards.some((c) => c.customer_id === id);
 
   useEffect(() => {
     if (!id) return;
@@ -68,6 +82,28 @@ export default function CustomerDetailScreen() {
       await update(customer.id, { grade: g });
     } catch (e) {
       Alert.alert('오류', e instanceof Error ? e.message : '수정 실패');
+    }
+  };
+
+  const handleAddToPipeline = async () => {
+    if (!authUser || !customer || alreadyInPipeline) return;
+    setPipelineLoading(true);
+    try {
+      await addToPipeline({
+        user_id: authUser.id,
+        customer_id: customer.id,
+        month_key: monthKey,
+        stage: 'ta_target',
+        note: null,
+      });
+      Alert.alert(
+        '추가 완료',
+        `${customer.name}님을 ${formatMonthKeyKorean(monthKey)} 생명수에 추가했어요.\n생명수 탭에서 확인하세요.`,
+      );
+    } catch (e) {
+      Alert.alert('오류', e instanceof Error ? e.message : '추가 실패');
+    } finally {
+      setPipelineLoading(false);
     }
   };
 
@@ -121,6 +157,27 @@ export default function CustomerDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* 이달 생명수에 추가 */}
+        <TouchableOpacity
+          style={[
+            styles.pipelineBtn,
+            alreadyInPipeline && styles.pipelineBtnAdded,
+          ]}
+          onPress={handleAddToPipeline}
+          disabled={alreadyInPipeline || pipelineLoading}>
+          {pipelineLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : alreadyInPipeline ? (
+            <Text style={styles.pipelineBtnText}>
+              ✅ {formatMonthKeyKorean(monthKey)} 생명수에 있음
+            </Text>
+          ) : (
+            <Text style={styles.pipelineBtnText}>
+              📋 {formatMonthKeyKorean(monthKey)} 생명수에 추가 (TA 대상)
+            </Text>
+          )}
+        </TouchableOpacity>
 
         {/* 빠른 액션 */}
         <View style={styles.actions}>
@@ -233,6 +290,16 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
 }
 
 const styles = StyleSheet.create({
+  pipelineBtn: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  pipelineBtnAdded: { backgroundColor: '#94A3B8' },
+  pipelineBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   headerBar: {
     flexDirection: 'row',
