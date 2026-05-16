@@ -79,10 +79,10 @@ export default function CustomersScreen() {
       Alert.alert('빈 양식', '모바일 네이티브에서는 다음 업데이트에 지원 예정입니다.');
       return;
     }
-    const url = `${window.location.protocol}//${window.location.hostname}:3000/templates/MET_고객관리_통합양식.xlsx`;
+    const url = `${window.location.protocol}//${window.location.hostname}:3000/templates/챙김_고객관리_통합양식.xlsx`;
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'MET_고객관리_통합양식.xlsx';
+    link.download = '챙김_고객관리_통합양식.xlsx';
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();

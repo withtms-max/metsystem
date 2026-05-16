@@ -14,19 +14,19 @@ export default function BlockedPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="max-w-md text-center">
-        <div className="text-6xl mb-6">📱</div>
-        <h1 className="text-2xl font-bold text-slate-900 mb-3">
-          이 페이지는 센터장용이에요
+    <div className="min-h-screen flex items-center justify-center px-6 bg-[var(--bg)]">
+      <div className="w-full max-w-[400px] text-center">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-[var(--brand-soft)] flex items-center justify-center mb-6">
+          <span className="text-[32px]">📱</span>
+        </div>
+        <h1 className="text-[24px] font-bold text-[var(--text-900)] tracking-tight leading-snug">
+          여긴 센터장 자리예요
         </h1>
-        <p className="text-slate-600 mb-6 leading-relaxed">
-          영업맨 계정으로 로그인하셨네요. 영업 기능은 모바일 앱(MET System)에서 사용할 수 있어요.
-          관리자 웹은 센터장 권한으로만 접근 가능합니다.
+        <p className="mt-4 text-[15px] text-[var(--text-500)] leading-relaxed">
+          영업맨은 폰 앱에서 일해요.<br />
+          이 화면은 센터장만 들어올 수 있어요.
         </p>
-        <button
-          onClick={handleSignOut}
-          className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition">
+        <button onClick={handleSignOut} className="toss-btn-primary mt-8">
           로그아웃
         </button>
       </div>

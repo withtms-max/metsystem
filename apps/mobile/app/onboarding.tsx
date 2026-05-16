@@ -11,7 +11,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
+import { Palette, Radius } from '@/constants/theme';
 
 type Step = 'role' | 'salesperson' | 'manager';
 
@@ -31,15 +33,15 @@ export default function OnboardingScreen() {
   const handleFinish = async (role: 'salesperson' | 'manager') => {
     setError(null);
     if (!name.trim()) {
-      setError('이름을 입력해주세요');
+      setError('이름은 적어주세요');
       return;
     }
     if (role === 'salesperson' && !inviteCode.trim()) {
-      setError('센터장이 알려준 초대 코드를 입력해주세요');
+      setError('센터장한테 6자리 코드 받아오세요');
       return;
     }
     if (role === 'manager' && !orgName.trim()) {
-      setError('센터(조직) 이름을 입력해주세요');
+      setError('센터 이름이 빠졌어요');
       return;
     }
     setLoading(true);
@@ -67,124 +69,159 @@ export default function OnboardingScreen() {
         style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {step === 'role' ? (
-            <View style={styles.section}>
-              <Text style={styles.title}>환영합니다! 👋</Text>
-              <Text style={styles.subtitle}>어떤 역할로 가입하시겠어요?</Text>
+            <View>
+              <Text style={styles.title}>잠깐,{'\n'}둘 중 어느 쪽이세요?</Text>
+              <Text style={styles.subtitle}>역할에 따라 보이는 화면이 달라요</Text>
 
-              <TouchableOpacity style={styles.roleCard} onPress={() => setStep('salesperson')}>
-                <Text style={styles.roleEmoji}>📱</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.roleTitle}>저는 영업맨이에요</Text>
-                  <Text style={styles.roleSub}>
-                    고객 관리 · 생명수 · 동선 영업 기능을 사용합니다
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              <View style={styles.roleCards}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.roleCard}
+                  onPress={() => setStep('salesperson')}>
+                  <View style={[styles.roleIcon, { backgroundColor: Palette.primarySoft }]}>
+                    <Ionicons name="person-outline" size={26} color={Palette.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.roleTitle}>저, 영업합니다</Text>
+                    <Text style={styles.roleSub}>
+                      고객·생명수·동선 — 다 폰에서 처리할게요
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Palette.textMuted} />
+                </TouchableOpacity>
 
-              <TouchableOpacity style={styles.roleCard} onPress={() => setStep('manager')}>
-                <Text style={styles.roleEmoji}>🖥️</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.roleTitle}>저는 센터장이에요</Text>
-                  <Text style={styles.roleSub}>
-                    팀원 활동 통계를 모니터링하고 초대 코드를 발급합니다
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.roleCard}
+                  onPress={() => setStep('manager')}>
+                  <View style={[styles.roleIcon, { backgroundColor: Palette.greenBg }]}>
+                    <Ionicons name="people-outline" size={26} color={Palette.green} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.roleTitle}>저, 센터장입니다</Text>
+                    <Text style={styles.roleSub}>
+                      팀 부르고 활동만 봐요 (고객 정보는 안 봐요)
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={Palette.textMuted} />
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity onPress={signOut} style={styles.signOut}>
-                <Text style={styles.signOutText}>다른 계정으로 로그인</Text>
+                <Text style={styles.signOutText}>다른 계정으로 다시</Text>
               </TouchableOpacity>
             </View>
           ) : step === 'salesperson' ? (
-            <View style={styles.section}>
-              <TouchableOpacity onPress={() => setStep('role')} style={styles.back}>
-                <Text style={styles.backText}>← 뒤로</Text>
+            <View>
+              <TouchableOpacity onPress={() => setStep('role')} style={styles.back} hitSlop={8}>
+                <Ionicons name="arrow-back" size={24} color={Palette.textMain} />
               </TouchableOpacity>
 
-              <Text style={styles.title}>영업맨 가입 📱</Text>
-              <Text style={styles.subtitle}>센터장이 알려준 초대 코드가 필요해요</Text>
+              <Text style={styles.title}>좋아요,{'\n'}몇 가지만 알려주세요</Text>
+              <Text style={styles.subtitle}>센터장한테 받은 6자리 코드가 필요해요</Text>
 
-              <Text style={styles.label}>이름 *</Text>
-              <TextInput style={styles.input} placeholder="홍길동" placeholderTextColor="#94A3B8" value={name} onChangeText={setName} />
+              <View style={styles.form}>
+                <Field label="이름">
+                  <TextInput
+                    style={styles.input}
+                    placeholder="홍길동"
+                    placeholderTextColor={Palette.textMuted}
+                    value={name}
+                    onChangeText={setName}
+                  />
+                </Field>
 
-              <Text style={styles.label}>연락처</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="010-1234-5678"
-                placeholderTextColor="#94A3B8"
-                keyboardType="phone-pad"
-                value={phone}
-                onChangeText={setPhone}
-              />
+                <Field label="연락처 (선택)">
+                  <TextInput
+                    style={styles.input}
+                    placeholder="010-1234-5678"
+                    placeholderTextColor={Palette.textMuted}
+                    keyboardType="phone-pad"
+                    value={phone}
+                    onChangeText={setPhone}
+                  />
+                </Field>
 
-              <Text style={styles.label}>초대 코드 *</Text>
-              <TextInput
-                style={[styles.input, styles.inputCode]}
-                placeholder="ABC123"
-                placeholderTextColor="#94A3B8"
-                autoCapitalize="characters"
-                value={inviteCode}
-                onChangeText={(t) => setInviteCode(t.toUpperCase())}
-                maxLength={6}
-              />
+                <Field label="초대 코드">
+                  <TextInput
+                    style={[styles.input, styles.inputCode]}
+                    placeholder="ABC123"
+                    placeholderTextColor={Palette.textMuted}
+                    autoCapitalize="characters"
+                    value={inviteCode}
+                    onChangeText={(t) => setInviteCode(t.toUpperCase())}
+                    maxLength={6}
+                  />
+                </Field>
 
-              {error && <Text style={styles.error}>{error}</Text>}
+                {error && <ErrorBox text={error} />}
 
-              <TouchableOpacity
-                style={[styles.submit, loading && styles.submitLoading]}
-                onPress={() => handleFinish('salesperson')}
-                disabled={loading}>
-                {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>가입 완료</Text>}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[styles.submit, loading && styles.submitLoading]}
+                  onPress={() => handleFinish('salesperson')}
+                  disabled={loading}>
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>들어가기</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
-            <View style={styles.section}>
-              <TouchableOpacity onPress={() => setStep('role')} style={styles.back}>
-                <Text style={styles.backText}>← 뒤로</Text>
+            <View>
+              <TouchableOpacity onPress={() => setStep('role')} style={styles.back} hitSlop={8}>
+                <Ionicons name="arrow-back" size={24} color={Palette.textMain} />
               </TouchableOpacity>
 
-              <Text style={styles.title}>센터장 가입 🖥️</Text>
-              <Text style={styles.subtitle}>새 조직을 만들고 팀원을 초대하세요</Text>
+              <Text style={styles.title}>좋습니다,{'\n'}센터 한번 차려봅시다</Text>
+              <Text style={styles.subtitle}>만들면 팀원 부를 6자리 코드 바로 나와요</Text>
 
-              <Text style={styles.label}>이름 *</Text>
-              <TextInput style={styles.input} placeholder="박센터장" placeholderTextColor="#94A3B8" value={name} onChangeText={setName} />
+              <View style={styles.form}>
+                <Field label="이름">
+                  <TextInput
+                    style={styles.input}
+                    placeholder="박센터장"
+                    placeholderTextColor={Palette.textMuted}
+                    value={name}
+                    onChangeText={setName}
+                  />
+                </Field>
 
-              <Text style={styles.label}>센터(조직) 이름 *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="강남센터"
-                placeholderTextColor="#94A3B8"
-                value={orgName}
-                onChangeText={setOrgName}
-              />
+                <Field label="센터 이름">
+                  <TextInput
+                    style={styles.input}
+                    placeholder="강남센터"
+                    placeholderTextColor={Palette.textMuted}
+                    value={orgName}
+                    onChangeText={setOrgName}
+                  />
+                </Field>
 
-              <Text style={styles.label}>업종</Text>
-              <View style={styles.industryRow}>
-                {INDUSTRIES.map((i) => (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => setIndustry(i)}
-                    style={[styles.industryChip, industry === i && styles.industryChipActive]}>
-                    <Text
-                      style={[styles.industryText, industry === i && styles.industryTextActive]}>
-                      {i}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                <Field label="업종">
+                  <View style={styles.industryRow}>
+                    {INDUSTRIES.map((i) => (
+                      <TouchableOpacity
+                        key={i}
+                        activeOpacity={0.75}
+                        onPress={() => setIndustry(i)}
+                        style={[styles.industryChip, industry === i && styles.industryChipActive]}>
+                        <Text
+                          style={[styles.industryText, industry === i && styles.industryTextActive]}>
+                          {i}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </Field>
+
+                {error && <ErrorBox text={error} />}
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[styles.submit, loading && styles.submitLoading]}
+                  onPress={() => handleFinish('manager')}
+                  disabled={loading}>
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>차리기</Text>}
+                </TouchableOpacity>
               </View>
-
-              {error && <Text style={styles.error}>{error}</Text>}
-
-              <TouchableOpacity
-                style={[styles.submit, loading && styles.submitLoading]}
-                onPress={() => handleFinish('manager')}
-                disabled={loading}>
-                {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>조직 만들기</Text>}
-              </TouchableOpacity>
-
-              <Text style={styles.hint}>
-                💡 조직 생성 후 초대 코드가 발급되고, 팀원에게 공유하면 가입할 수 있어요.
-              </Text>
             </View>
           )}
         </ScrollView>
@@ -193,64 +230,104 @@ export default function OnboardingScreen() {
   );
 }
 
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+function ErrorBox({ text }: { text: string }) {
+  return (
+    <View style={styles.errorBox}>
+      <Text style={styles.errorText}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  scroll: { padding: 24 },
-  section: { flex: 1 },
-  back: { marginBottom: 12 },
-  backText: { color: '#64748B', fontWeight: '600', fontSize: 14 },
+  container: { flex: 1, backgroundColor: Palette.bg },
+  scroll: { padding: 24, paddingBottom: 40 },
 
-  title: { fontSize: 26, fontWeight: '800', color: '#0F172A', marginTop: 8 },
-  subtitle: { fontSize: 14, color: '#64748B', marginTop: 4, marginBottom: 20 },
+  back: { width: 44, height: 44, marginLeft: -12, marginBottom: 4, justifyContent: 'center' },
 
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: Palette.textMain,
+    letterSpacing: -0.5,
+    lineHeight: 38,
+    marginTop: 8,
+  },
+  subtitle: { fontSize: 15, color: Palette.textSub, marginTop: 12, marginBottom: 32 },
+
+  roleCards: { gap: 10 },
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Palette.card,
     padding: 18,
+    borderRadius: Radius.lg,
+    gap: 14,
+  },
+  roleIcon: {
+    width: 48,
+    height: 48,
     borderRadius: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  roleEmoji: { fontSize: 36, marginRight: 14 },
-  roleTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-  roleSub: { fontSize: 13, color: '#64748B', marginTop: 4 },
+  roleTitle: { fontSize: 16, fontWeight: '700', color: Palette.textMain },
+  roleSub: { fontSize: 13, color: Palette.textSub, marginTop: 4, lineHeight: 18 },
 
-  label: { fontSize: 13, fontWeight: '700', color: '#475569', marginTop: 16, marginBottom: 6 },
+  form: { gap: 18 },
+  label: { fontSize: 13, fontWeight: '700', color: Palette.textSub, marginBottom: 8 },
   input: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
+    backgroundColor: Palette.card,
+    paddingHorizontal: 16,
+    height: 56,
+    borderRadius: Radius.md,
+    fontSize: 16,
+    color: Palette.textMain,
+    fontWeight: '500',
+    borderWidth: 1,
+    borderColor: Palette.borderStrong,
+  },
+  inputCode: { letterSpacing: 6, fontWeight: '700', textAlign: 'center', fontSize: 20 },
+
+  errorBox: {
+    backgroundColor: Palette.redBg,
+    borderRadius: Radius.md,
+    paddingHorizontal: 16,
     paddingVertical: 14,
-    borderRadius: 12,
-    fontSize: 15,
-    color: '#0F172A',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
-  inputCode: { letterSpacing: 4, fontWeight: '700', textAlign: 'center', fontSize: 18 },
+  errorText: { color: Palette.red, fontSize: 14, fontWeight: '500' },
 
-  error: { color: '#DC2626', fontSize: 13, marginTop: 12, fontWeight: '600' },
-  submit: { backgroundColor: '#2563EB', paddingVertical: 16, borderRadius: 12, alignItems: 'center', marginTop: 24 },
+  submit: {
+    backgroundColor: Palette.primary,
+    height: 56,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
   submitLoading: { opacity: 0.7 },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  hint: { fontSize: 12, color: '#64748B', marginTop: 16, lineHeight: 18 },
+  submitText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
 
-  industryRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
+  industryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   industryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    height: 40,
+    backgroundColor: Palette.grayBg,
+    borderRadius: Radius.pill,
+    justifyContent: 'center',
   },
-  industryChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
-  industryText: { color: '#64748B', fontWeight: '600', fontSize: 13 },
+  industryChipActive: { backgroundColor: Palette.primary },
+  industryText: { color: Palette.textSub, fontWeight: '600', fontSize: 13 },
   industryTextActive: { color: '#FFFFFF' },
 
-  signOut: { alignItems: 'center', marginTop: 24, padding: 12 },
-  signOutText: { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
+  signOut: { alignItems: 'center', marginTop: 28, padding: 12 },
+  signOutText: { color: Palette.textMuted, fontSize: 14, fontWeight: '600' },
 });

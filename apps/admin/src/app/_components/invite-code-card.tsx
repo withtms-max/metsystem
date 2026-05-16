@@ -18,34 +18,32 @@ export default function InviteCodeCard({ inviteCode, orgName }: Props) {
 
   if (!inviteCode) {
     return (
-      <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200">
-        <p className="text-sm text-red-800">
-          <strong>⚠️ 초대 코드 없음:</strong> 조직 생성 시 자동 발급되어야 하는데 비어있어요. Supabase
-          users 테이블 또는 organizations 테이블을 확인해주세요.
+      <div className="mb-6 p-5 rounded-2xl bg-[#FEF2F2] border border-[#FECACA]">
+        <div className="text-[13px] font-bold text-[var(--danger)] mb-1">코드가 비어있어요</div>
+        <p className="text-[13px] text-[var(--text-700)] leading-relaxed">
+          조직 만들 때 자동으로 생겼어야 하는데… organizations 테이블 한번 봐주세요.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-wider opacity-80">
-            팀원 초대 코드
+    <div className="mb-6 p-6 rounded-2xl bg-[var(--brand)] text-white"
+      style={{ boxShadow: '0 8px 24px rgba(49, 130, 246, 0.25)' }}>
+      <div className="flex items-center justify-between gap-6">
+        <div className="min-w-0">
+          <div className="text-[12px] font-semibold opacity-80 mb-2">{orgName} 들어오는 코드</div>
+          <div className="text-[36px] font-extrabold tracking-[0.2em] tabular-nums leading-none">
+            {inviteCode}
           </div>
-          <div className="flex items-baseline gap-3 mt-1">
-            <div className="text-4xl font-extrabold tracking-widest">{inviteCode}</div>
-            <div className="text-xs opacity-80">{orgName}</div>
-          </div>
-          <div className="text-xs mt-2 opacity-80">
-            영업맨에게 이 코드를 알려주면 모바일 앱에서 가입할 수 있어요
+          <div className="text-[13px] mt-3 opacity-85 leading-relaxed">
+            영업맨한테 카톡으로 던지면 됩니다. 6자리만 치면 들어와요
           </div>
         </div>
         <button
           onClick={handleCopy}
-          className="px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-bold backdrop-blur transition">
-          {copied ? '✓ 복사됨' : '📋 복사'}
+          className="shrink-0 h-10 px-5 rounded-xl bg-white/15 hover:bg-white/25 active:scale-[0.98] text-[13px] font-bold backdrop-blur transition">
+          {copied ? '복사됐어요' : '복사'}
         </button>
       </div>
     </div>

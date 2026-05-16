@@ -14,15 +14,11 @@ function extractErrorMessage(e: unknown): string {
     const o = e as { message?: string; details?: string; hint?: string; code?: string };
     if (o.message) {
       const parts = [o.message];
-      if (o.code) parts.push(`(code: ${o.code})`);
+      if (o.code) parts.push(`(${o.code})`);
       if (o.hint) parts.push(`hint: ${o.hint}`);
       return parts.join(' ');
     }
-    try {
-      return JSON.stringify(e);
-    } catch {
-      return String(e);
-    }
+    try { return JSON.stringify(e); } catch { return String(e); }
   }
   return String(e);
 }
@@ -39,31 +35,14 @@ export default function OnboardingPage() {
     e.preventDefault();
     setError(null);
     if (!name.trim() || !orgName.trim()) {
-      setError('이름과 센터명을 입력해주세요');
+      setError('이름이랑 센터명 둘 다 적어주세요');
       return;
     }
     setLoading(true);
     try {
       const supabase = createSupabaseBrowserClient();
-
-      // 디버그: 세션과 사용자 상태 출력
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      console.log('[onboarding] session exists?', !!session);
-      console.log('[onboarding] session.user.id:', session?.user?.id);
-      console.log(
-        '[onboarding] access_token prefix:',
-        session?.access_token?.slice(0, 30) + '...',
-      );
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      console.log('[onboarding] getUser() returned:', user?.id, user?.email);
-
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.warn('[onboarding] 사용자 없음 → /login으로 리다이렉트');
         router.push('/login');
         return;
       }
@@ -77,84 +56,89 @@ export default function OnboardingPage() {
       router.push('/');
     } catch (e) {
       setError(extractErrorMessage(e));
-      console.error('[onboarding] error:', e);
-      console.error('[onboarding] error type:', typeof e, e?.constructor?.name);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">센터 만들기 🖥️</h1>
-          <p className="text-sm text-slate-500 mt-1">새 조직을 만들고 팀원을 초대하세요</p>
+    <div className="min-h-screen flex flex-col bg-[var(--bg)]">
+      <div className="flex-1 min-h-8" />
+
+      <main className="w-full max-w-[420px] mx-auto px-6 pb-12">
+        <div className="mb-10">
+          <div className="text-[13px] font-semibold text-[var(--brand)] mb-2">센터 만들기</div>
+          <h1 className="text-[28px] leading-[1.3] font-bold text-[var(--text-900)] tracking-tight">
+            우리 센터,<br />여기서 시작해볼게요
+          </h1>
+          <p className="mt-3 text-[15px] text-[var(--text-500)]">
+            만들면 팀원 부를 6자리 코드 바로 나와요
+          </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">이름 *</label>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <Field label="이름">
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="박센터장"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-teal-500"
+              className="toss-input"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">센터(조직) 이름 *</label>
+          <Field label="센터 이름">
             <input
               type="text"
               value={orgName}
               onChange={(e) => setOrgName(e.target.value)}
               placeholder="강남센터"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-teal-500"
+              className="toss-input"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-600 mb-1.5">업종</label>
+          <Field label="업종">
             <div className="flex flex-wrap gap-2">
               {INDUSTRIES.map((i) => (
                 <button
                   type="button"
                   key={i}
                   onClick={() => setIndustry(i)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                  className={`h-10 px-4 rounded-full text-[13px] font-semibold transition ${
                     industry === i
-                      ? 'bg-teal-600 text-white border-teal-600'
-                      : 'bg-white text-slate-600 border-slate-200'
+                      ? 'bg-[var(--brand)] text-white'
+                      : 'bg-[var(--line)] text-[var(--text-700)] hover:bg-[var(--line-strong)]'
                   }`}>
                   {i}
                 </button>
               ))}
             </div>
-          </div>
+          </Field>
 
           {error && (
-            <div className="text-sm text-red-600 font-semibold bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="px-4 py-3 rounded-xl bg-[#FEF2F2] text-[14px] text-[var(--danger)] font-medium">
               {error}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold rounded-xl transition">
-            {loading ? '처리 중...' : '조직 만들기'}
-          </button>
-
-          <p className="text-xs text-slate-500 leading-relaxed">
-            💡 조직 생성 후 초대 코드가 자동 발급돼요. 팀원에게 공유하면 그 코드로 모바일 앱에서
-            가입할 수 있어요.
-          </p>
+          <div className="pt-3">
+            <button type="submit" disabled={loading} className="toss-btn-primary">
+              {loading ? '잠깐만요...' : '센터 만들기'}
+            </button>
+          </div>
         </form>
-      </div>
+      </main>
+
+      <div className="flex-1 min-h-8" />
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-[13px] font-semibold text-[var(--text-700)] mb-2">{label}</label>
+      {children}
     </div>
   );
 }

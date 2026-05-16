@@ -10,7 +10,7 @@ export const isSupabaseConfigured = Boolean(url && anonKey);
 
 if (!isSupabaseConfigured) {
   console.warn(
-    '[MET] Supabase 환경변수 미설정. .env.local 파일에 EXPO_PUBLIC_SUPABASE_URL과 ' +
+    '[챙김] Supabase 환경변수 미설정. .env.local 파일에 EXPO_PUBLIC_SUPABASE_URL과 ' +
       'EXPO_PUBLIC_SUPABASE_ANON_KEY를 입력해주세요.',
   );
 }

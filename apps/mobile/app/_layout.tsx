@@ -6,8 +6,19 @@ import { ActivityIndicator, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { Palette } from '@/constants/theme';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+
+// Pretendard 폰트 (웹 빌드에서만 head에 주입)
+if (typeof document !== 'undefined' && !document.getElementById('pretendard-font')) {
+  const link = document.createElement('link');
+  link.id = 'pretendard-font';
+  link.rel = 'stylesheet';
+  link.href =
+    'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css';
+  document.head.appendChild(link);
+}
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -40,9 +51,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: '#111827',
+          backgroundColor: Palette.bg,
         }}>
-        <ActivityIndicator size="large" color="#0D9488" />
+        <ActivityIndicator size="large" color={Palette.primary} />
       </View>
     );
   }

@@ -13,7 +13,17 @@ import { ProfileSheet } from '@/components/profile-sheet';
 function formatToday(): string {
   const d = new Date();
   const days = ['일', '월', '화', '수', '목', '금', '토'];
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+}
+
+function greetByTime(name: string): string {
+  const h = new Date().getHours();
+  if (h < 6) return `${name}님, 아직 안 주무세요?`;
+  if (h < 10) return `${name}님, 오늘도 시작해볼까요`;
+  if (h < 14) return `${name}님, 점심 챙기셨어요?`;
+  if (h < 18) return `${name}님, 오후도 한 번 더`;
+  if (h < 21) return `${name}님, 마무리 잘 챙겨요`;
+  return `${name}님, 오늘 고생했어요`;
 }
 
 export default function HomeScreen() {
@@ -45,12 +55,12 @@ export default function HomeScreen() {
       <SafeAreaView edges={['top']} style={styles.headerWrap}>
         <View style={styles.headerInner}>
           <View>
-            <Text style={styles.greeting}>안녕하세요, {userName}님</Text>
+            <Text style={styles.greeting}>{greetByTime(userName)}</Text>
             <Text style={styles.subGreeting}>{formatToday()}</Text>
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.iconBtn}>
-              <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="notifications-outline" size={20} color={Palette.textMain} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.avatarBtn} onPress={() => setProfileOpen(true)}>
               <Text style={styles.avatarBtnText}>{userName.slice(0, 1)}</Text>
@@ -65,16 +75,16 @@ export default function HomeScreen() {
         {/* 오늘의 미팅 카드 */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>오늘의 미팅</Text>
+            <Text style={styles.cardTitle}>오늘 만날 사람</Text>
             <Text style={styles.cardCount}>
-              {todayMeetings.length}건 예정 · 목표 {meetingsGoal}건 / 완료 {meetingsDone}건
+              {meetingsDone}/{meetingsGoal} 완료 · 예정 {todayMeetings.length}건
             </Text>
           </View>
 
           {todayMeetings.length === 0 ? (
             <View style={styles.emptyInline}>
-              <Text style={styles.emptyText}>오늘 예정된 미팅이 없어요</Text>
-              <Text style={styles.emptyHint}>생명수에서 미팅을 추가해보세요</Text>
+              <Text style={styles.emptyText}>오늘 잡힌 약속이 없네요</Text>
+              <Text style={styles.emptyHint}>생명수에서 한 명 끌어와봐요</Text>
             </View>
           ) : (
             todayMeetings.map((m, i) => (
@@ -94,45 +104,45 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.cardFooter}
             onPress={() => router.push('/(tabs)/pipeline')}>
-            <Text style={styles.cardFooterText}>전체 일정 보기</Text>
+            <Text style={styles.cardFooterText}>이번 달 전체 보기</Text>
             <Ionicons name="chevron-forward" size={14} color={Palette.textSub} />
           </TouchableOpacity>
         </View>
 
-        {/* 오늘의 활동 현황 */}
+        {/* 오늘 얼마나 깠나 */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>오늘의 활동 현황</Text>
-            <Text style={styles.cardMeta}>업데이트 {timeNow()}</Text>
+            <Text style={styles.cardTitle}>오늘 얼마나 움직였나요</Text>
+            <Text style={styles.cardMeta}>{timeNow()} 기준</Text>
           </View>
 
           <ActivityRow
             icon="call-outline"
-            label="전화 (TA)"
+            label="TA 깐 횟수"
             value={taDone}
             goal={taGoal}
             color={Palette.blue}
           />
           <ActivityRow
             icon="people-outline"
-            label="미팅"
+            label="만난 사람"
             value={meetingsDone}
             goal={meetingsGoal}
             color={Palette.primary}
           />
         </View>
 
-        {/* 이번 달 목표 */}
+        {/* 이번 달 */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>이번 달 목표</Text>
-            <Text style={styles.cardMeta}>업데이트 {timeNow()}</Text>
+            <Text style={styles.cardTitle}>이번 달, 어디까지 왔나</Text>
+            <Text style={styles.cardMeta}>{timeNow()} 기준</Text>
           </View>
 
           <View style={styles.targetRow}>
-            <Text style={styles.targetLabel}>미팅 목표</Text>
+            <Text style={styles.targetLabel}>만나기로 한 사람</Text>
             <Text style={styles.targetValue}>
-              <Text style={styles.targetBig}>{monthlyMeetingDone}</Text> / {monthlyMeetingGoal}건
+              <Text style={styles.targetBig}>{monthlyMeetingDone}</Text> / {monthlyMeetingGoal}명
             </Text>
           </View>
           <View style={styles.progressBar}>
@@ -143,7 +153,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.primaryBtn}
             onPress={() => router.push('/(tabs)/pipeline')}>
-            <Text style={styles.primaryBtnText}>성과 보드 보기</Text>
+            <Text style={styles.primaryBtnText}>생명수 펼쳐보기</Text>
           </TouchableOpacity>
         </View>
 
@@ -151,7 +161,7 @@ export default function HomeScreen() {
         <View style={styles.quickGrid}>
           <QuickItem
             icon="person-add-outline"
-            label="고객 추가"
+            label="명함 추가"
             onPress={() => router.push('/customer/new')}
           />
           <QuickItem
@@ -161,20 +171,24 @@ export default function HomeScreen() {
           />
           <QuickItem
             icon="document-text-outline"
-            label="업무 기록"
+            label="기록"
             onPress={() => router.push('/(tabs)/pipeline')}
           />
           <QuickItem icon="notifications-outline" label="알림" onPress={() => {}} />
         </View>
 
-        {/* 업무 알림 */}
+        {/* 알림 카드 */}
         <TouchableOpacity style={styles.noticeCard}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.noticeTitle}>업무 알림</Text>
+            <Text style={styles.noticeTitle}>오늘 한 줄</Text>
             <Text style={styles.noticeSub}>
               {counts.contract > 0
-                ? `오늘 계약 ${counts.contract}건 성사 — 축하해요!`
-                : '새로운 공지사항이 없어요'}
+                ? `계약 ${counts.contract}건 — 오늘 진짜 잘 하셨어요`
+                : counts.meeting >= 3
+                  ? '오늘 목표 다 챙겼어요. 수고했어요'
+                  : counts.meeting > 0
+                    ? '잘 가고 있어요. 한 명만 더!'
+                    : '아직 조용해요. 한 통 깔아볼까요?'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={Palette.textMuted} />
@@ -245,54 +259,52 @@ function QuickItem({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Palette.bg },
 
-  // Header
-  headerWrap: { backgroundColor: Palette.graphite },
+  // Header — Toss style light
+  headerWrap: { backgroundColor: Palette.bg },
   headerInner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    paddingTop: 8,
+    paddingBottom: 16,
+    paddingTop: 12,
   },
-  greeting: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
-  subGreeting: { color: '#CBD5E1', fontSize: 12, marginTop: 4 },
+  greeting: { color: Palette.textMain, fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+  subGreeting: { color: Palette.textSub, fontSize: 13, marginTop: 4, fontWeight: '500' },
   bellBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Palette.card,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Palette.card,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Palette.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  avatarBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
 
   scroll: { padding: 16, paddingTop: 16 },
 
-  // Cards
+  // Cards — Toss는 보더 없이 부드러운 shadow만
   card: {
     backgroundColor: Palette.card,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 16,
+    borderRadius: Radius.xl,
+    padding: 20,
     marginBottom: 12,
     ...Shadow.card,
   },
@@ -300,9 +312,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 14,
+    marginBottom: 16,
   },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: Palette.textMain },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: Palette.textMain, letterSpacing: -0.2 },
   cardCount: { fontSize: 12, color: Palette.textSub, fontWeight: '500' },
   cardMeta: { fontSize: 11, color: Palette.textMuted },
 
@@ -318,12 +330,12 @@ const styles = StyleSheet.create({
   meetingTitle: { fontSize: 14, fontWeight: '600', color: Palette.textMain },
   meetingSub: { fontSize: 12, color: Palette.textSub, marginTop: 2 },
   statusChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: Radius.pill,
     backgroundColor: Palette.primarySoft,
   },
-  statusChipText: { fontSize: 11, fontWeight: '600', color: Palette.primaryDeep },
+  statusChipText: { fontSize: 11, fontWeight: '700', color: Palette.primaryDeep },
 
   emptyInline: { paddingVertical: 20, alignItems: 'center' },
   emptyText: { color: Palette.textSub, fontSize: 13, fontWeight: '500' },
@@ -402,9 +414,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Palette.card,
     borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    paddingVertical: 14,
+    paddingVertical: 16,
     alignItems: 'center',
     ...Shadow.card,
   },
@@ -425,9 +435,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Palette.card,
     borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 16,
+    padding: 18,
     gap: 12,
     ...Shadow.card,
   },

@@ -1,26 +1,111 @@
 @import "tailwindcss";
+/* Pretendard 폰트는 layout.tsx에서 <link>로 로드 */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Toss palette */
+  --bg: #F9FAFB;
+  --bg-elev: #FFFFFF;
+  --line: #F2F4F6;
+  --line-strong: #E5E8EB;
+
+  --text-900: #191F28;
+  --text-700: #4E5968;
+  --text-500: #8B95A1;
+  --text-400: #B0B8C1;
+
+  --brand: #3182F6;       /* Toss blue */
+  --brand-hover: #1B64DA;
+  --brand-soft: #E8F2FF;
+
+  --success: #00C471;
+  --warn: #FF7B00;
+  --danger: #F04452;
+
+  --kakao: #FEE500;
+  --kakao-hover: #FDD800;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--bg);
+  --color-foreground: var(--text-900);
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, Roboto, 'Helvetica Neue', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+html, body {
+  background: var(--bg);
+  color: var(--text-900);
+  font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    system-ui, Roboto, 'Helvetica Neue', sans-serif;
+  font-feature-settings: 'tnum';
+  letter-spacing: -0.01em;
+}
+
+/* Input focus state — Toss는 border 굵게 (2px) */
+.toss-input {
+  width: 100%;
+  height: 56px;
+  padding: 0 16px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-900);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.toss-input::placeholder { color: var(--text-400); font-weight: 400; }
+.toss-input:hover { border-color: var(--text-400); }
+.toss-input:focus { border-color: var(--brand); border-width: 2px; padding: 0 15px; }
+
+/* Primary button — Toss 진한 파랑 pill */
+.toss-btn-primary {
+  width: 100%;
+  height: 56px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+.toss-btn-primary:hover:not(:disabled) { background: var(--brand-hover); }
+.toss-btn-primary:active:not(:disabled) { transform: scale(0.99); }
+.toss-btn-primary:disabled { background: var(--line-strong); color: var(--text-400); cursor: not-allowed; }
+
+.toss-btn-kakao {
+  width: 100%;
+  height: 56px;
+  background: var(--kakao);
+  color: #191919;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease;
+}
+.toss-btn-kakao:hover { background: var(--kakao-hover); }
+
+.toss-card {
+  background: var(--bg-elev);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
 }

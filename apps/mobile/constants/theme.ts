@@ -1,68 +1,84 @@
 /**
- * MET System Design Tokens — Field Sales Management 톤
- * Reference: Concept 4 (Deep Teal + Graphite + Light Gray)
+ * 챙김 Design Tokens — Toss Style
+ * Reference: 토스(Toss) 디자인 시스템 — 블루 #3182F6 + 부드러운 그레이
  */
 
 import { Platform } from 'react-native';
 
 // ============================================
-// Palette
+// Palette — Toss tone
 // ============================================
 
 export const Palette = {
-  primary: '#0D9488',
-  primaryDeep: '#0F766E',
-  primarySoft: '#CCFBF1',
-  secondary: '#14B8A6',
+  // Primary (Toss blue)
+  primary: '#3182F6',
+  primaryDeep: '#1B64DA',
+  primarySoft: '#E8F2FF',
+  secondary: '#4DABF7',
 
-  graphite: '#111827',
-  textMain: '#1F2937',
-  textSub: '#64748B',
-  textMuted: '#94A3B8',
+  // Text
+  graphite: '#191F28',
+  textMain: '#191F28',
+  textSub: '#4E5968',
+  textMuted: '#8B95A1',
 
-  bg: '#F8FAFC',
+  // Surface
+  bg: '#F9FAFB',
   card: '#FFFFFF',
-  border: '#E5E7EB',
-  borderStrong: '#CBD5E1',
+  border: '#F2F4F6',
+  borderStrong: '#E5E8EB',
 
-  blue: '#2563EB',
-  green: '#22C55E',
-  orange: '#F59E0B',
-  red: '#EF4444',
-  gray: '#94A3B8',
+  // Semantic
+  blue: '#3182F6',
+  green: '#00C471',
+  orange: '#FF7B00',
+  red: '#F04452',
+  gray: '#8B95A1',
 
-  blueBg: '#DBEAFE',
-  greenBg: '#DCFCE7',
-  orangeBg: '#FEF3C7',
-  redBg: '#FEE2E2',
-  grayBg: '#F1F5F9',
+  // Soft backgrounds
+  blueBg: '#E8F2FF',
+  greenBg: '#E6F9F1',
+  orangeBg: '#FFF4E5',
+  redBg: '#FEF2F2',
+  grayBg: '#F2F4F6',
 } as const;
 
+// 고객 등급 — Toss 톤으로 부드럽게
 export const GradeColor = {
-  A: { bg: '#FEE2E2', fg: '#B91C1C', dot: '#EF4444' },
-  B: { bg: '#FEF3C7', fg: '#B45309', dot: '#F59E0B' },
-  C: { bg: '#DBEAFE', fg: '#1D4ED8', dot: '#3B82F6' },
-  D: { bg: '#F1F5F9', fg: '#475569', dot: '#94A3B8' },
+  A: { bg: '#FEF2F2', fg: '#D33645', dot: '#F04452' }, // 빨강 (최우선)
+  B: { bg: '#FFF4E5', fg: '#D96B00', dot: '#FF7B00' }, // 주황
+  C: { bg: '#E8F2FF', fg: '#1B64DA', dot: '#3182F6' }, // 블루
+  D: { bg: '#F2F4F6', fg: '#4E5968', dot: '#8B95A1' }, // 그레이
 } as const;
 
+// 칸반 스테이지
 export const StageStyle = {
-  ta_target: { label: 'TA 대상', bg: '#F1F5F9', fg: '#475569', accent: '#94A3B8' },
-  ta_done: { label: 'TA 완료', bg: '#DBEAFE', fg: '#1D4ED8', accent: '#2563EB' },
-  meeting_scheduled: { label: '미팅 예정', bg: '#CCFBF1', fg: '#0F766E', accent: '#0D9488' },
-  meeting_done: { label: '미팅 완료', bg: '#E0E7FF', fg: '#4338CA', accent: '#6366F1' },
-  contract: { label: '계약', bg: '#DCFCE7', fg: '#15803D', accent: '#22C55E' },
-  on_hold: { label: '보류', bg: '#FEF3C7', fg: '#B45309', accent: '#F59E0B' },
+  ta_target:         { label: 'TA 대상',   bg: '#F2F4F6', fg: '#4E5968', accent: '#8B95A1' },
+  ta_done:           { label: 'TA 완료',   bg: '#E8F2FF', fg: '#1B64DA', accent: '#3182F6' },
+  meeting_scheduled: { label: '미팅 예정', bg: '#FFF4E5', fg: '#D96B00', accent: '#FF7B00' },
+  meeting_done:      { label: '미팅 완료', bg: '#EEF2FF', fg: '#4338CA', accent: '#6366F1' },
+  contract:          { label: '계약',      bg: '#E6F9F1', fg: '#008F52', accent: '#00C471' },
+  on_hold:           { label: '보류',      bg: '#F2F4F6', fg: '#4E5968', accent: '#8B95A1' },
 } as const;
 
-export const Radius = { sm: 8, md: 10, lg: 14, xl: 16, pill: 999 } as const;
+// Toss는 더 큰 라운드를 자주 씀 (12/16/20)
+export const Radius = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 } as const;
 
+// 매우 부드러운 그림자 — 토스 특유
 export const Shadow = {
   card: {
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
+    shadowColor: '#191F28',
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+  },
+  floating: {
+    shadowColor: '#191F28',
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
 } as const;
 
@@ -106,7 +122,7 @@ export const Fonts = Platform.select({
     mono: 'monospace',
   },
   web: {
-    sans: "Pretendard, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    sans: "'Pretendard Variable', Pretendard, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     serif: "Georgia, 'Times New Roman', serif",
     rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
