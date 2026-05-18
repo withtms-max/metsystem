@@ -29,7 +29,7 @@ interface Props {
 }
 
 /**
- * 시책 작성 — 관리자/오너 전용.
+ * 챌린지 작성 — 관리자/오너 전용.
  * team_events INSERT 시 event_type='campaign' + 기간 + 목표.
  */
 export function CampaignAddSheet({ visible, onClose, onAdded }: Props) {
@@ -62,7 +62,7 @@ export function CampaignAddSheet({ visible, onClose, onAdded }: Props) {
 
   const handleSubmit = async () => {
     setError(null);
-    if (!title.trim()) return setError('시책 제목을 입력해주세요');
+    if (!title.trim()) return setError('챌린지 제목을 입력해주세요');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return setError('시작일 형식 YYYY-MM-DD');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return setError('종료일 형식 YYYY-MM-DD');
     if (endDate < startDate) return setError('종료일은 시작일 이후여야 해요');
@@ -109,12 +109,12 @@ export function CampaignAddSheet({ visible, onClose, onAdded }: Props) {
           <ScrollView keyboardShouldPersistTaps="handled">
             <View style={styles.handle} />
 
-            <Text style={styles.title}>시책 추가</Text>
+            <Text style={styles.title}>챌린지 추가</Text>
             <Text style={styles.subtitle}>
               기간 + 목표를 설정하면 팀원 활동량이 자동으로 집계돼요
             </Text>
 
-            <Text style={styles.label}>시책 제목</Text>
+            <Text style={styles.label}>챌린지 제목</Text>
             <TextInput
               style={styles.input}
               placeholder="예: 5월 신규 계약 5건 도전"
@@ -127,7 +127,7 @@ export function CampaignAddSheet({ visible, onClose, onAdded }: Props) {
             <Text style={styles.label}>설명 (선택)</Text>
             <TextInput
               style={[styles.input, styles.descInput]}
-              placeholder="시책 안내·보상 등"
+              placeholder="챌린지 안내·보상 등"
               placeholderTextColor={Palette.textMuted}
               value={description}
               onChangeText={setDescription}

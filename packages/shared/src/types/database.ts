@@ -207,7 +207,7 @@ export interface TeamEventRow {
   is_all_day: boolean;
   event_type: TeamEventType;
   description: string | null;
-  // 시책 전용
+  // 챌린지 전용
   start_date: string | null;
   end_date: string | null;
   target_value: number | null;

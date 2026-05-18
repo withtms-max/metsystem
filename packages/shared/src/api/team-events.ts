@@ -83,7 +83,7 @@ export function teamEventTypeLabel(t: TeamEventType): string {
       external: '외부 미팅',
       meal: '회식',
       announcement: '공지',
-      campaign: '시책',
+      campaign: '챌린지',
       other: '기타',
     } as Record<TeamEventType, string>
   )[t] ?? '기타';
@@ -138,10 +138,10 @@ export async function listAnnouncements(
 }
 
 // ============================================
-// 시책(캠페인) 헬퍼
+// 챌린지(캠페인) 헬퍼
 // ============================================
 
-/** 진행 중인 시책 (오늘이 start_date ~ end_date 사이) */
+/** 진행 중인 챌린지 (오늘이 start_date ~ end_date 사이) */
 export async function listActiveCampaigns(
   supabase: MetSupabaseClient,
 ): Promise<TeamEvent[]> {
@@ -160,7 +160,7 @@ export async function listActiveCampaigns(
   return (data ?? []) as TeamEvent[];
 }
 
-/** 전체 시책 (지난 것 + 진행 중 + 예정) */
+/** 전체 챌린지 (지난 것 + 진행 중 + 예정) */
 export async function listAllCampaigns(
   supabase: MetSupabaseClient,
   limit = 50,

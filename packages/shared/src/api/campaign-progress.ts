@@ -1,7 +1,7 @@
 /**
- * 시책(캠페인) 진척률 계산.
+ * 챌린지(캠페인) 진척률 계산.
  *
- * 시책은 team_events 에 저장돼 있고 (event_type='campaign'),
+ * 챌린지은 team_events 에 저장돼 있고 (event_type='campaign'),
  * start_date / end_date / target_value / target_metric 컬럼 활용.
  *
  * 진척률은 activity_logs 를 기간 안에서 집계해서 산출.
@@ -98,7 +98,7 @@ export async function getCampaignProgress(
   };
 }
 
-/** 시책 KPI 메트릭 한국어 라벨 */
+/** 챌린지 KPI 메트릭 한국어 라벨 */
 export function campaignMetricLabel(m: CampaignMetric): string {
   return (
     {

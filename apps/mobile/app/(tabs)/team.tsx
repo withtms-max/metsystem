@@ -99,7 +99,7 @@ export default function TeamHubScreen() {
           <Text style={styles.emptyEmoji}>👥</Text>
           <Text style={styles.emptyTitle}>팀을 만들거나 참여하세요</Text>
           <Text style={styles.emptyDesc}>
-            팀이 있어야 시책·공지·자료실·팀 일정을 같이 쓸 수 있어요.{'\n'}
+            팀이 있어야 챌린지·공지·자료실·팀 일정을 같이 쓸 수 있어요.{'\n'}
             지금은 개인 모드로도 모든 고객·캘린더·지도 기능을 사용할 수 있어요.
           </Text>
 
@@ -188,16 +188,16 @@ export default function TeamHubScreen() {
               </TouchableOpacity>
             )}
 
-            {/* 진행 중 시책 */}
+            {/* 진행 중 챌린지 */}
             <View style={styles.section}>
               <View style={styles.sectionHead}>
-                <Text style={styles.sectionTitle}>🎯 진행 중인 시책</Text>
+                <Text style={styles.sectionTitle}>🎯 진행 중인 챌린지</Text>
                 {isManager && (
                   <TouchableOpacity
                     style={styles.addLink}
                     onPress={() => setCampaignAddOpen(true)}>
                     <Ionicons name="add" size={14} color={Palette.primary} />
-                    <Text style={styles.addLinkText}>시책 추가</Text>
+                    <Text style={styles.addLinkText}>챌린지 추가</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -205,8 +205,8 @@ export default function TeamHubScreen() {
               {campaigns.length === 0 ? (
                 <View style={styles.emptyCard}>
                   <Text style={styles.emptyText}>
-                    진행 중인 시책이 없어요
-                    {isManager && '\n위에서 시책을 추가해보세요'}
+                    진행 중인 챌린지이 없어요
+                    {isManager && '\n위에서 챌린지을 추가해보세요'}
                   </Text>
                 </View>
               ) : (
@@ -269,13 +269,13 @@ export default function TeamHubScreen() {
             </View>
 
             <Text style={styles.footnote}>
-              다중 팀 소속 · 팀원 목록 · 시책 보상은 V2 에 추가 예정
+              다중 팀 소속 · 팀원 목록 · 챌린지 보상은 V2 에 추가 예정
             </Text>
           </>
         )}
       </ScrollView>
 
-      {/* 시책 작성 */}
+      {/* 챌린지 작성 */}
       <CampaignAddSheet
         visible={campaignAddOpen}
         onClose={() => setCampaignAddOpen(false)}

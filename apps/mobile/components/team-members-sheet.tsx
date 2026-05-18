@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { ConfirmNameSheet } from '@/components/confirm-name-sheet';
 import { Palette, Radius } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +32,7 @@ export function TeamMembersSheet({ visible, onClose }: Props) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<TeamMember | null>(null);
 
   const reload = useCallback(async () => {
     if (!organization) return;
@@ -49,19 +51,13 @@ export function TeamMembersSheet({ visible, onClose }: Props) {
     if (visible) void reload();
   }, [visible, reload]);
 
-  const handleRemove = async (userId: string, name: string) => {
-    if (!organization) return;
-    const reason =
-      typeof window !== 'undefined' && window.prompt
-        ? window.prompt(`"${name}" 님을 내보낼까요? 사유 (선택)`) ?? undefined
-        : undefined;
-    if (typeof window !== 'undefined' && window.confirm) {
-      if (!window.confirm(`정말 "${name}" 님을 내보낼까요?`)) return;
-    }
-    setActing(userId);
+  const confirmRemove = async () => {
+    if (!organization || !removeTarget) return;
+    setActing(removeTarget.user.id);
     try {
-      await removeTeamMember(supabase, userId, organization.id, reason);
+      await removeTeamMember(supabase, removeTarget.user.id, organization.id);
       await reload();
+      setRemoveTarget(null);
     } catch (e) {
       const err = e as { message?: string };
       if (typeof window !== 'undefined' && window.alert) window.alert(err.message ?? '내보내기 실패');
@@ -134,7 +130,7 @@ export function TeamMembersSheet({ visible, onClose }: Props) {
                     {canRemove ? (
                       <TouchableOpacity
                         style={styles.removeBtn}
-                        onPress={() => handleRemove(m.user.id, m.user.name ?? '멤버')}
+                        onPress={() => setRemoveTarget(m)}
                         disabled={acting === m.user.id}>
                         {acting === m.user.id ? (
                           <ActivityIndicator size="small" color={Palette.red} />
@@ -154,6 +150,19 @@ export function TeamMembersSheet({ visible, onClose }: Props) {
           </TouchableOpacity>
         </Pressable>
       </Pressable>
+
+      <ConfirmNameSheet
+        visible={removeTarget !== null}
+        confirmName={removeTarget?.user.name ?? ''}
+        title="팀원 내보내기"
+        description={
+          '내보내면 이 팀원은 즉시 팀의 시책·공지·자료실에 접근할 수 없게 돼요.\n실수 방지를 위해 이름을 확인해주세요.'
+        }
+        destructiveLabel="내보내기"
+        inputLabel="확인을 위해 멤버 이름을 그대로 입력해주세요"
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={confirmRemove}
+      />
     </Modal>
   );
 }

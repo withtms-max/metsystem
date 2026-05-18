@@ -16,6 +16,7 @@ import {
   requestNotificationPermission,
   type NotificationPermission,
 } from '@/lib/web-notifications';
+import { ConfirmNameSheet } from '@/components/confirm-name-sheet';
 import { TeamCreateSheet } from '@/components/team-create-sheet';
 import { TeamJoinSheet } from '@/components/team-join-sheet';
 import { supabase } from '@/lib/supabase';
@@ -49,6 +50,7 @@ export function ProfileSheet({ visible, onClose }: Props) {
   const [joinOpen, setJoinOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [teamsLoading, setTeamsLoading] = useState(false);
+  const [leaveTarget, setLeaveTarget] = useState<MyTeam | null>(null);
 
   const reloadTeams = useCallback(async () => {
     setTeamsLoading(true);
@@ -84,16 +86,13 @@ export function ProfileSheet({ visible, onClose }: Props) {
     }
   };
 
-  const handleLeave = async (orgId: string, orgName: string) => {
-    const ok =
-      typeof window !== 'undefined' && window.confirm
-        ? window.confirm(`"${orgName}" 팀에서 탈퇴할까요? 이 팀의 데이터는 더 이상 보이지 않게 돼요.`)
-        : true;
-    if (!ok) return;
+  const confirmLeave = async () => {
+    if (!leaveTarget) return;
     try {
-      await leaveTeam(supabase, orgId);
+      await leaveTeam(supabase, leaveTarget.organization.id);
       await refreshProfile();
       await reloadTeams();
+      setLeaveTarget(null);
     } catch (e) {
       const err = e as { message?: string };
       if (typeof window !== 'undefined' && window.alert) {
@@ -224,7 +223,7 @@ export function ProfileSheet({ visible, onClose }: Props) {
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => handleLeave(t.organization.id, t.organization.name)}
+                      onPress={() => setLeaveTarget(t)}
                       hitSlop={6}>
                       <Ionicons name="exit-outline" size={16} color={Palette.textMuted} />
                     </TouchableOpacity>
@@ -309,6 +308,20 @@ export function ProfileSheet({ visible, onClose }: Props) {
           setCreateOpen(false);
           void reloadTeams();
         }}
+      />
+
+      {/* 탈퇴 확인 — 팀명 입력 */}
+      <ConfirmNameSheet
+        visible={leaveTarget !== null}
+        confirmName={leaveTarget?.organization.name ?? ''}
+        title="정말 탈퇴할까요?"
+        description={
+          '탈퇴하면 이 팀의 시책·공지·자료실에 더 이상 접근할 수 없어요.\n다시 가입하려면 관리자의 승인이 필요해요.'
+        }
+        destructiveLabel="탈퇴"
+        inputLabel="확인을 위해 팀 이름을 그대로 입력해주세요"
+        onClose={() => setLeaveTarget(null)}
+        onConfirm={confirmLeave}
       />
     </Modal>
   );
