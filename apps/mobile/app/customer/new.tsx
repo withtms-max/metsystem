@@ -155,7 +155,14 @@ export default function NewCustomerScreen() {
       });
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : '저장 실패');
+      // Supabase 에러는 보통 PostgrestError 형태 — code/details/hint 까지 보여줘야 디버깅 가능
+      const err = e as { message?: string; code?: string; details?: string; hint?: string };
+      const detailed =
+        [err.message, err.details, err.hint, err.code ? `(${err.code})` : '']
+          .filter(Boolean)
+          .join(' · ') || '저장 실패';
+      console.error('[customer/new] save failed', e);
+      setError(detailed);
     } finally {
       setLoading(false);
     }
