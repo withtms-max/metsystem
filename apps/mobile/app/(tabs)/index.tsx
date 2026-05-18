@@ -4,6 +4,7 @@ import {
   listStaleCustomers,
   listUpcomingActions,
   type Customer,
+  type CustomerGrade,
   type PipelineCardWithCustomer,
 } from '@metsystem/shared';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -41,19 +42,23 @@ export default function HomeScreen() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [staleCustomers, setStaleCustomers] = useState<Customer[]>([]);
   const [upcomingActions, setUpcomingActions] = useState<Customer[]>([]);
+  const [gradeFocus, setGradeFocus] = useState<CustomerGrade | null>(null);
 
   const reloadIntel = useCallback(async () => {
     try {
+      const grades = gradeFocus ? [gradeFocus] : (['A', 'B'] as CustomerGrade[]);
       const [stale, actions] = await Promise.all([
-        listStaleCustomers(supabase, 90),
+        listStaleCustomers(supabase, 90, grades),
         listUpcomingActions(supabase, 7),
       ]);
       setStaleCustomers(stale);
-      setUpcomingActions(actions);
+      setUpcomingActions(
+        gradeFocus ? actions.filter((c) => c.grade === gradeFocus) : actions,
+      );
     } catch (e) {
       console.warn('[home] intel fetch failed', e);
     }
-  }, []);
+  }, [gradeFocus]);
 
   useEffect(() => {
     void reloadIntel();
@@ -104,6 +109,44 @@ export default function HomeScreen() {
       <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* 등급 포커스 칩 — 정보 과부하 방지 */}
+        <View style={styles.focusRow}>
+          <Text style={styles.focusLabel}>오늘 집중:</Text>
+          <TouchableOpacity
+            style={[styles.focusChip, gradeFocus === null && styles.focusChipActive]}
+            onPress={() => setGradeFocus(null)}>
+            <Text
+              style={[
+                styles.focusChipText,
+                gradeFocus === null && styles.focusChipTextActive,
+              ]}>
+              전체
+            </Text>
+          </TouchableOpacity>
+          {(['A', 'B', 'C', 'D'] as CustomerGrade[]).map((g) => {
+            const color = GradeColor[g];
+            const active = gradeFocus === g;
+            return (
+              <TouchableOpacity
+                key={g}
+                style={[
+                  styles.focusChip,
+                  active && { backgroundColor: color.bg, borderColor: color.dot },
+                ]}
+                onPress={() => setGradeFocus(active ? null : g)}>
+                <View style={[styles.focusChipDot, { backgroundColor: color.dot }]} />
+                <Text
+                  style={[
+                    styles.focusChipText,
+                    active && { color: color.fg, fontWeight: '700' },
+                  ]}>
+                  {g}급
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {/* 🎯 다음 7일 액션 — 까먹지 말기 */}
         {upcomingActions.length > 0 && (
           <TouchableOpacity
@@ -554,6 +597,30 @@ const styles = StyleSheet.create({
   },
   staleTitle: { fontSize: 12, fontWeight: '700', color: Palette.orange },
   staleSub: { fontSize: 10, color: '#D97706', marginTop: 2 },
+
+  focusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 8,
+    flexWrap: 'wrap',
+  },
+  focusLabel: { fontSize: 11, fontWeight: '700', color: Palette.textSub, marginRight: 4 },
+  focusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.grayBg,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  focusChipActive: { backgroundColor: Palette.textMain },
+  focusChipDot: { width: 5, height: 5, borderRadius: 3 },
+  focusChipText: { fontSize: 11, fontWeight: '600', color: Palette.textSub },
+  focusChipTextActive: { color: '#FFFFFF' },
 });
 
 // Suppress unused — kept for future use

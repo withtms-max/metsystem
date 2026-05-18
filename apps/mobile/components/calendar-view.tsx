@@ -9,6 +9,7 @@ import {
   WEEKDAY_KO,
   type CalendarEvent,
   type CalendarScope,
+  type CustomerGrade,
   type TeamEventType,
 } from '@metsystem/shared';
 import { useRouter } from 'expo-router';
@@ -23,7 +24,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Palette, Radius } from '@/constants/theme';
+import { GradeColor, Palette, Radius } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import { EventAddSheet } from '@/components/event-add-sheet';
@@ -71,20 +72,34 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
   const router = useRouter();
   const [fabExpanded, setFabExpanded] = useState(false);
   const [scope, setScope] = useState<ScopeFilter>('all');
+  const [gradeFilter, setGradeFilter] = useState<CustomerGrade | null>(null);
 
   // 월 그리드 (6주 × 7일)
   const grid = useMemo(() => buildMonthGrid(monthKey), [monthKey]);
 
-  // 토글에 따라 필터 (공휴일은 항상 표시 — 한국 영업 환경 필수 정보)
+  // 토글에 따라 필터 (공휴일·팀일정은 등급 무관, 항상 표시)
   const visibleEvents = useMemo(() => {
-    if (scope === 'all') return events;
     return events.filter((e) => {
-      if (e.scope === 'holiday') return true;
-      if (scope === 'personal') return e.scope === 'personal';
-      if (scope === 'team') return e.scope === 'team';
+      // 범위 필터
+      if (scope !== 'all') {
+        if (e.scope === 'holiday') {
+          // 공휴일은 항상 표시
+        } else if (scope === 'personal' && e.scope !== 'personal') return false;
+        else if (scope === 'team' && e.scope !== 'team') return false;
+      }
+
+      // 등급 필터 — 고객 연결된 이벤트만 적용
+      if (gradeFilter) {
+        // 공휴일/팀일정은 등급 무관이라 통과
+        if (e.scope === 'holiday' || e.scope === 'team') return true;
+        const g = e.meta?.customer_grade as string | null | undefined;
+        // 고객 없는 개인 일정 (e.g. 메모) 은 등급 필터 시 숨김
+        if (!g) return false;
+        if (g !== gradeFilter) return false;
+      }
       return true;
     });
-  }, [events, scope]);
+  }, [events, scope, gradeFilter]);
 
   // 날짜별 이벤트 인덱스
   const eventsByDate = useMemo(() => {
@@ -137,6 +152,43 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
             </Text>
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* 등급 필터 — 가로 칩 */}
+      <View style={styles.gradeFilterRow}>
+        <TouchableOpacity
+          style={[styles.gradeChip, gradeFilter === null && styles.gradeChipActive]}
+          onPress={() => setGradeFilter(null)}>
+          <Text
+            style={[
+              styles.gradeChipText,
+              gradeFilter === null && styles.gradeChipTextActive,
+            ]}>
+            전체
+          </Text>
+        </TouchableOpacity>
+        {(['A', 'B', 'C', 'D'] as CustomerGrade[]).map((g) => {
+          const color = GradeColor[g];
+          const active = gradeFilter === g;
+          return (
+            <TouchableOpacity
+              key={g}
+              style={[
+                styles.gradeChip,
+                active && { backgroundColor: color.bg, borderColor: color.dot },
+              ]}
+              onPress={() => setGradeFilter(active ? null : g)}>
+              <View style={[styles.gradeChipDot, { backgroundColor: color.dot }]} />
+              <Text
+                style={[
+                  styles.gradeChipText,
+                  active && { color: color.fg, fontWeight: '700' },
+                ]}>
+                {g}급
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* 월 스위처 */}
@@ -524,6 +576,28 @@ const styles = StyleSheet.create({
   scopeTabActive: { backgroundColor: Palette.textMain },
   scopeTabText: { fontSize: 12, fontWeight: '600', color: Palette.textSub },
   scopeTabTextActive: { color: '#FFFFFF' },
+
+  gradeFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 5,
+  },
+  gradeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.grayBg,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  gradeChipActive: { backgroundColor: Palette.textMain },
+  gradeChipDot: { width: 5, height: 5, borderRadius: 3 },
+  gradeChipText: { fontSize: 11, fontWeight: '600', color: Palette.textSub },
+  gradeChipTextActive: { color: '#FFFFFF' },
 
   holidayLabel: {
     fontSize: 9,

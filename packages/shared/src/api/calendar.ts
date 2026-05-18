@@ -52,7 +52,7 @@ export async function listMonthlyEvents(
   // 활동 로그
   const { data: activities, error: actErr } = await supabase
     .from('activity_logs')
-    .select('id, activity_type, activity_date, customer_id, note, status, mood, customers(id, name, company)')
+    .select('id, activity_type, activity_date, customer_id, note, status, mood, customers(id, name, company, grade)')
     .eq('user_id', userId)
     .gte('activity_date', monthStart)
     .lte('activity_date', monthEnd);
@@ -62,7 +62,7 @@ export async function listMonthlyEvents(
   // 골든타임 룰
   const { data: rules, error: ruleErr } = await supabase
     .from('golden_time_rules')
-    .select('id, rule_type, trigger_date, customer_id, is_active, customers(name, company)')
+    .select('id, rule_type, trigger_date, customer_id, is_active, customers(id, name, company, grade)')
     .eq('user_id', userId)
     .eq('is_active', true);
 
@@ -71,7 +71,12 @@ export async function listMonthlyEvents(
   const events: CalendarEvent[] = [];
 
   // Supabase foreign key 조인은 항상 배열로 옴 — 첫 요소만 사용
-  type RawCustomer = { id: string; name: string; company: string | null };
+  type RawCustomer = {
+    id: string;
+    name: string;
+    company: string | null;
+    grade: string | null;
+  };
   type RawActivity = {
     activity_type: ActivityType;
     activity_date: string;
@@ -106,6 +111,7 @@ export async function listMonthlyEvents(
         mood: a.mood,
         note: a.note,
         customer_id: a.customer_id ?? customer?.id ?? null,
+        customer_grade: customer?.grade ?? null,
       },
     });
   }
@@ -124,7 +130,11 @@ export async function listMonthlyEvents(
       kind: 'golden_time',
       scope: 'personal',
       label: `${name} ${ruleTypeLabel(r.rule_type)}`,
-      meta: { rule_type: r.rule_type },
+      meta: {
+        rule_type: r.rule_type,
+        customer_id: customer?.id ?? null,
+        customer_grade: customer?.grade ?? null,
+      },
     });
   }
 
@@ -132,7 +142,7 @@ export async function listMonthlyEvents(
   // 그리고 다가오는 next_action_date
   const { data: customerFields, error: custErr } = await supabase
     .from('customers')
-    .select('id, name, company, birthday, anniversary, contract_date, next_action_text, next_action_date')
+    .select('id, name, company, grade, birthday, anniversary, contract_date, next_action_text, next_action_date')
     .eq('owner_id', userId);
 
   if (custErr) console.warn('[calendar] customer fields err', custErr);
@@ -141,6 +151,7 @@ export async function listMonthlyEvents(
     id: string;
     name: string;
     company: string | null;
+    grade: string | null;
     birthday: string | null;
     anniversary: string | null;
     contract_date: string | null;
@@ -153,6 +164,7 @@ export async function listMonthlyEvents(
     kind: CalendarEventKind,
     label: string,
     custId: string,
+    grade: string | null,
   ) => {
     const mmdd = dateStr.slice(5);
     if (!mmdd.startsWith(`${String(month).padStart(2, '0')}-`)) return;
@@ -161,21 +173,29 @@ export async function listMonthlyEvents(
       kind,
       scope: 'personal',
       label,
-      meta: { customer_id: custId },
+      meta: { customer_id: custId, customer_grade: grade },
     });
   };
 
   for (const c of ((customerFields ?? []) as CustField[])) {
     const displayName = c.company ?? c.name;
-    if (c.birthday) pushAnnualEvent(c.birthday, 'birthday', `🎂 ${displayName} 생일`, c.id);
+    if (c.birthday)
+      pushAnnualEvent(c.birthday, 'birthday', `🎂 ${displayName} 생일`, c.id, c.grade);
     if (c.anniversary)
-      pushAnnualEvent(c.anniversary, 'anniversary', `💍 ${displayName} 결혼기념일`, c.id);
+      pushAnnualEvent(
+        c.anniversary,
+        'anniversary',
+        `💍 ${displayName} 결혼기념일`,
+        c.id,
+        c.grade,
+      );
     if (c.contract_date)
       pushAnnualEvent(
         c.contract_date,
         'contract_anniversary',
         `🏆 ${displayName} 계약기념일`,
         c.id,
+        c.grade,
       );
     // 다음 액션 — 일회성 (정확한 날짜 매칭)
     if (c.next_action_date && c.next_action_date >= monthStart && c.next_action_date <= monthEnd) {
@@ -184,7 +204,11 @@ export async function listMonthlyEvents(
         kind: 'next_action',
         scope: 'personal',
         label: `✅ ${displayName} · ${c.next_action_text ?? '예정 액션'}`,
-        meta: { customer_id: c.id, action: c.next_action_text },
+        meta: {
+          customer_id: c.id,
+          action: c.next_action_text,
+          customer_grade: c.grade,
+        },
       });
     }
   }

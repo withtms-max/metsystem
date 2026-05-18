@@ -83,12 +83,14 @@ export async function deleteCustomer(
 }
 
 /**
- * 무연락 N일 경과 고객 (A·B급 우선) — 홈 화면 경고 배너용.
+ * 무연락 N일 경과 고객 — 홈 화면 경고 배너용.
  * - last_contact_at NULL 인 고객도 포함 (한 번도 활동 없음)
+ * - grades 인자로 등급 한정 가능 (기본: A·B)
  */
 export async function listStaleCustomers(
   supabase: MetSupabaseClient,
   staleDays = 90,
+  grades: CustomerGrade[] = ['A', 'B'],
 ): Promise<Customer[]> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - staleDays);
@@ -97,7 +99,7 @@ export async function listStaleCustomers(
   const { data, error } = await supabase
     .from('customers')
     .select('*')
-    .in('grade', ['A', 'B'])
+    .in('grade', grades)
     .or(`last_contact_at.is.null,last_contact_at.lt.${cutoffIso}`)
     .order('grade', { ascending: true })
     .limit(20);
