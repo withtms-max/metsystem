@@ -44,6 +44,10 @@ const KIND_COLOR: Record<string, string> = {
   message: Palette.textMuted,
   holiday: Palette.red,
   team_event: '#8B5CF6', // 보라 — 팀 일정 전용
+  birthday: '#EC4899', // 핫핑크
+  anniversary: '#F472B6', // 라이트핑크
+  contract_anniversary: Palette.orange,
+  next_action: Palette.primary,
 };
 
 const SCOPE_TABS: { key: ScopeFilter; label: string }[] = [
@@ -392,6 +396,10 @@ function iconForKind(kind: string): keyof typeof Ionicons.glyphMap {
   if (kind === 'contract') return 'trophy-outline';
   if (kind === 'golden_time') return 'gift-outline';
   if (kind === 'memo') return 'document-text-outline';
+  if (kind === 'birthday') return 'gift';
+  if (kind === 'anniversary') return 'heart';
+  if (kind === 'contract_anniversary') return 'ribbon-outline';
+  if (kind === 'next_action') return 'flag';
   return 'ellipse-outline';
 }
 

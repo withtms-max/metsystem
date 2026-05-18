@@ -11,7 +11,11 @@ export type CalendarEventKind =
   | 'contract'
   | 'golden_time'
   | 'holiday'
-  | 'team_event';
+  | 'team_event'
+  | 'birthday'
+  | 'anniversary'
+  | 'contract_anniversary'
+  | 'next_action';
 
 /** 일정 범위 — UI 토글 필터링용 */
 export type CalendarScope = 'personal' | 'team' | 'holiday';
@@ -116,6 +120,67 @@ export async function listMonthlyEvents(
       label: `${name} ${ruleTypeLabel(r.rule_type)}`,
       meta: { rule_type: r.rule_type },
     });
+  }
+
+  // 고객 기념일 — 매년 반복 (birthday, anniversary, contract_date)
+  // 그리고 다가오는 next_action_date
+  const { data: customerFields, error: custErr } = await supabase
+    .from('customers')
+    .select('id, name, company, birthday, anniversary, contract_date, next_action_text, next_action_date')
+    .eq('owner_id', userId);
+
+  if (custErr) console.warn('[calendar] customer fields err', custErr);
+
+  type CustField = {
+    id: string;
+    name: string;
+    company: string | null;
+    birthday: string | null;
+    anniversary: string | null;
+    contract_date: string | null;
+    next_action_text: string | null;
+    next_action_date: string | null;
+  };
+
+  const pushAnnualEvent = (
+    dateStr: string,
+    kind: CalendarEventKind,
+    label: string,
+    custId: string,
+  ) => {
+    const mmdd = dateStr.slice(5);
+    if (!mmdd.startsWith(`${String(month).padStart(2, '0')}-`)) return;
+    events.push({
+      date: `${year}-${mmdd}`,
+      kind,
+      scope: 'personal',
+      label,
+      meta: { customer_id: custId },
+    });
+  };
+
+  for (const c of ((customerFields ?? []) as CustField[])) {
+    const displayName = c.company ?? c.name;
+    if (c.birthday) pushAnnualEvent(c.birthday, 'birthday', `🎂 ${displayName} 생일`, c.id);
+    if (c.anniversary)
+      pushAnnualEvent(c.anniversary, 'anniversary', `💍 ${displayName} 결혼기념일`, c.id);
+    if (c.contract_date)
+      pushAnnualEvent(
+        c.contract_date,
+        'contract_anniversary',
+        `🏆 ${displayName} 계약기념일`,
+        c.id,
+      );
+    // 다음 액션 — 일회성 (정확한 날짜 매칭)
+    if (c.next_action_date && c.next_action_date >= monthStart && c.next_action_date <= monthEnd) {
+      events.push({
+        date: c.next_action_date,
+        kind: 'next_action',
+        scope: 'personal',
+        label: `✅ ${displayName} · ${c.next_action_text ?? '예정 액션'}`,
+        meta: { customer_id: c.id, action: c.next_action_text },
+      });
+    }
   }
 
   // 한국 공휴일

@@ -94,8 +94,26 @@ export interface CustomerRow {
   memo: string | null;
   contract_date: string | null;
   birthday: string | null;
+  // 영업 인텔리전스 필드
+  anniversary: string | null;
+  children: ChildInfo[] | null;
+  hobbies: string[] | null;
+  referrer_id: string | null;
+  next_action_text: string | null;
+  next_action_date: string | null;
+  last_contact_at: string | null;
+  preferred_contact_time: string | null;
+  preferred_contact_method: string | null;
+  competitor_product: string | null;
+  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ChildInfo {
+  name: string;
+  birth_year?: number;
+  school?: string;
 }
 
 export interface ActivityLogRow {
@@ -215,6 +233,17 @@ export interface Database {
           memo?: string | null;
           contract_date?: string | null;
           birthday?: string | null;
+          anniversary?: string | null;
+          children?: ChildInfo[] | null;
+          hobbies?: string[] | null;
+          referrer_id?: string | null;
+          next_action_text?: string | null;
+          next_action_date?: string | null;
+          last_contact_at?: string | null;
+          preferred_contact_time?: string | null;
+          preferred_contact_method?: string | null;
+          competitor_product?: string | null;
+          rejection_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };

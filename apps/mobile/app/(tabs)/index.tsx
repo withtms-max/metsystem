@@ -1,10 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { currentMonthKey, type PipelineCardWithCustomer } from '@metsystem/shared';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import {
+  currentMonthKey,
+  listStaleCustomers,
+  listUpcomingActions,
+  type Customer,
+  type PipelineCardWithCustomer,
+} from '@metsystem/shared';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 import { useDailyCounts } from '@/hooks/use-daily-counts';
 import { usePipeline } from '@/hooks/use-pipeline';
 import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
@@ -32,6 +39,31 @@ export default function HomeScreen() {
   const { counts } = useDailyCounts();
   const { byStage } = usePipeline(currentMonthKey());
   const [profileOpen, setProfileOpen] = useState(false);
+  const [staleCustomers, setStaleCustomers] = useState<Customer[]>([]);
+  const [upcomingActions, setUpcomingActions] = useState<Customer[]>([]);
+
+  const reloadIntel = useCallback(async () => {
+    try {
+      const [stale, actions] = await Promise.all([
+        listStaleCustomers(supabase, 90),
+        listUpcomingActions(supabase, 7),
+      ]);
+      setStaleCustomers(stale);
+      setUpcomingActions(actions);
+    } catch (e) {
+      console.warn('[home] intel fetch failed', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadIntel();
+  }, [reloadIntel]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void reloadIntel();
+    }, [reloadIntel]),
+  );
 
   const userName = profile?.name ?? '영업맨';
   const meetingsDone = counts.meeting;
@@ -72,6 +104,56 @@ export default function HomeScreen() {
       <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* 🎯 다음 7일 액션 — 까먹지 말기 */}
+        {upcomingActions.length > 0 && (
+          <TouchableOpacity
+            style={styles.actionBanner}
+            onPress={() =>
+              router.push({
+                pathname: '/customer/[id]',
+                params: { id: upcomingActions[0].id },
+              })
+            }>
+            <View style={styles.actionIcon}>
+              <Ionicons name="flag" size={14} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionTitle}>
+                {upcomingActions[0].next_action_date} · {upcomingActions[0].name} ·{' '}
+                {upcomingActions[0].next_action_text}
+              </Text>
+              {upcomingActions.length > 1 && (
+                <Text style={styles.actionSub}>+{upcomingActions.length - 1}건 더</Text>
+              )}
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={Palette.primary} />
+          </TouchableOpacity>
+        )}
+
+        {/* ⏰ 90일 무연락 — A·B급 위주 */}
+        {staleCustomers.length > 0 && (
+          <TouchableOpacity
+            style={styles.staleBanner}
+            onPress={() =>
+              router.push({
+                pathname: '/customer/[id]',
+                params: { id: staleCustomers[0].id },
+              })
+            }>
+            <View style={[styles.actionIcon, { backgroundColor: Palette.orange }]}>
+              <Ionicons name="time" size={14} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.staleTitle}>
+                {staleCustomers.length}명 90일 이상 무연락 — {staleCustomers[0].grade}급{' '}
+                {staleCustomers[0].name}
+              </Text>
+              <Text style={styles.staleSub}>이탈 전에 한 통 깔아볼까요?</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={Palette.orange} />
+          </TouchableOpacity>
+        )}
+
         {/* 오늘의 미팅 카드 */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
@@ -440,6 +522,38 @@ const styles = StyleSheet.create({
   },
   noticeTitle: { fontSize: 12, fontWeight: '600', color: Palette.textMain },
   noticeSub: { fontSize: 11, color: Palette.textSub, marginTop: 2 },
+
+  actionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.primarySoft,
+    borderRadius: Radius.md,
+    padding: 10,
+    marginBottom: 6,
+    gap: 8,
+  },
+  actionIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Palette.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionTitle: { fontSize: 12, fontWeight: '700', color: Palette.primaryDeep },
+  actionSub: { fontSize: 10, color: Palette.primary, marginTop: 2 },
+
+  staleBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7ED',
+    borderRadius: Radius.md,
+    padding: 10,
+    marginBottom: 6,
+    gap: 8,
+  },
+  staleTitle: { fontSize: 12, fontWeight: '700', color: Palette.orange },
+  staleSub: { fontSize: 10, color: '#D97706', marginTop: 2 },
 });
 
 // Suppress unused — kept for future use

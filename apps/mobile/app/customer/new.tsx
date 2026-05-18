@@ -51,6 +51,16 @@ export default function NewCustomerScreen() {
 
   const [memo, setMemo] = useState('');
   const [grade, setGrade] = useState<CustomerGrade>('D');
+  // 영업 인텔리전스 — 펼침 섹션
+  const [showIntel, setShowIntel] = useState(false);
+  const [birthday, setBirthday] = useState(''); // YYYY-MM-DD
+  const [anniversary, setAnniversary] = useState('');
+  const [contractDate, setContractDate] = useState('');
+  const [hobbiesText, setHobbiesText] = useState(''); // 쉼표 구분
+  const [nextActionText, setNextActionText] = useState('');
+  const [nextActionDate, setNextActionDate] = useState('');
+  const [preferredTime, setPreferredTime] = useState('');
+  const [preferredMethod, setPreferredMethod] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   /** Daum 검색으로 받아온 정확한 시군구 — 우선 사용 */
@@ -125,6 +135,19 @@ export default function NewCustomerScreen() {
         home_longitude: homeCoords?.lng ?? null,
         contract_latitude: contractCoords?.lat ?? null,
         contract_longitude: contractCoords?.lng ?? null,
+        birthday: birthday.trim() || null,
+        anniversary: anniversary.trim() || null,
+        contract_date: contractDate.trim() || null,
+        hobbies: hobbiesText.trim()
+          ? hobbiesText
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : null,
+        next_action_text: nextActionText.trim() || null,
+        next_action_date: nextActionDate.trim() || null,
+        preferred_contact_time: preferredTime.trim() || null,
+        preferred_contact_method: preferredMethod.trim() || null,
         region_tag: detectedRegion ?? null,
         memo: memo.trim() || null,
         grade,
@@ -289,6 +312,103 @@ export default function NewCustomerScreen() {
             textAlignVertical="top"
           />
 
+          {/* 영업 인텔리전스 — 펼치기 */}
+          {!showIntel ? (
+            <TouchableOpacity
+              style={styles.expandBtn}
+              onPress={() => setShowIntel(true)}>
+              <Text style={styles.expandBtnText}>
+                ＋ 기념일·취미·다음액션 등 추가 정보 (놓치면 손해)
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <>
+              <Text style={styles.sectionHeader}>🎯 다음 액션 (까먹지 말기)</Text>
+              <View style={styles.row}>
+                <View style={{ flex: 1.5 }}>
+                  <Text style={styles.sublabel}>할 일</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="자료 보내기"
+                    placeholderTextColor="#94A3B8"
+                    value={nextActionText}
+                    onChangeText={setNextActionText}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sublabel}>예정일</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="2026-05-25"
+                    placeholderTextColor="#94A3B8"
+                    value={nextActionDate}
+                    onChangeText={setNextActionDate}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.sectionHeader}>🎂 기념일 (매년 알림)</Text>
+              <Text style={styles.sublabel}>생일</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="1985-03-15"
+                placeholderTextColor="#94A3B8"
+                value={birthday}
+                onChangeText={setBirthday}
+              />
+              <Text style={styles.sublabel}>결혼기념일</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="2010-05-20"
+                placeholderTextColor="#94A3B8"
+                value={anniversary}
+                onChangeText={setAnniversary}
+              />
+              <Text style={styles.sublabel}>계약일</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="2024-08-10"
+                placeholderTextColor="#94A3B8"
+                value={contractDate}
+                onChangeText={setContractDate}
+              />
+
+              <Text style={styles.sectionHeader}>💬 라포 정보</Text>
+              <Text style={styles.sublabel}>취미·관심사 (쉼표로 구분)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="골프, 와인, 등산"
+                placeholderTextColor="#94A3B8"
+                value={hobbiesText}
+                onChangeText={setHobbiesText}
+              />
+
+              <Text style={styles.sectionHeader}>📞 연락 선호</Text>
+              <View style={styles.row}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sublabel}>시간대</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="점심 후 / 퇴근 후"
+                    placeholderTextColor="#94A3B8"
+                    value={preferredTime}
+                    onChangeText={setPreferredTime}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sublabel}>방법</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="카톡 / 전화 / 문자"
+                    placeholderTextColor="#94A3B8"
+                    value={preferredMethod}
+                    onChangeText={setPreferredMethod}
+                  />
+                </View>
+              </View>
+            </>
+          )}
+
           {error && <Text style={styles.error}>{error}</Text>}
 
           <View style={{ height: 24 }} />
@@ -336,6 +456,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   expandBtnText: { fontSize: 13, color: '#4E5968', fontWeight: '600' },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 20,
+    marginBottom: 6,
+  },
+  sublabel: { fontSize: 11, color: '#64748B', marginTop: 8, marginBottom: 4, fontWeight: '600' },
+  row: { flexDirection: 'row', gap: 8 },
 
   gradeRow: { flexDirection: 'row', gap: 8 },
   gradeBtn: {

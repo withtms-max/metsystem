@@ -81,3 +81,52 @@ export async function deleteCustomer(
   const { error } = await supabase.from('customers').delete().eq('id', id);
   if (error) throw error;
 }
+
+/**
+ * 무연락 N일 경과 고객 (A·B급 우선) — 홈 화면 경고 배너용.
+ * - last_contact_at NULL 인 고객도 포함 (한 번도 활동 없음)
+ */
+export async function listStaleCustomers(
+  supabase: MetSupabaseClient,
+  staleDays = 90,
+): Promise<Customer[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - staleDays);
+  const cutoffIso = cutoff.toISOString();
+
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .in('grade', ['A', 'B'])
+    .or(`last_contact_at.is.null,last_contact_at.lt.${cutoffIso}`)
+    .order('grade', { ascending: true })
+    .limit(20);
+
+  if (error) throw error;
+  return (data ?? []) as Customer[];
+}
+
+/**
+ * 이번 주 안에 예정된 next_action 들 — 홈 화면에 "오늘 만날 사람"보다 액션 중심.
+ */
+export async function listUpcomingActions(
+  supabase: MetSupabaseClient,
+  daysAhead = 7,
+): Promise<Customer[]> {
+  const today = new Date();
+  const end = new Date();
+  end.setDate(end.getDate() + daysAhead);
+  const todayStr = today.toISOString().slice(0, 10);
+  const endStr = end.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .not('next_action_date', 'is', null)
+    .gte('next_action_date', todayStr)
+    .lte('next_action_date', endStr)
+    .order('next_action_date', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as Customer[];
+}

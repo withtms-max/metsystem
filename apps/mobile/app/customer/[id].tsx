@@ -258,6 +258,62 @@ export default function CustomerDetailScreen() {
               </View>
             </View>
 
+            {/* 다음 액션 — 진하게 강조 */}
+            {customer.next_action_text && (
+              <View style={[styles.card, { borderColor: Palette.primary, borderWidth: 1.5 }]}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>🎯 다음에 할 일</Text>
+                  {customer.next_action_date && (
+                    <Text style={{ fontSize: 12, color: Palette.primary, fontWeight: '700' }}>
+                      {customer.next_action_date}
+                    </Text>
+                  )}
+                </View>
+                <Text style={[styles.memo, { color: Palette.primaryDeep, fontWeight: '600' }]}>
+                  {customer.next_action_text}
+                </Text>
+              </View>
+            )}
+
+            {/* 기념일 카드 */}
+            {(customer.birthday || customer.anniversary || customer.contract_date) && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>🎂 기념일 (매년 자동 알림)</Text>
+                {customer.birthday && <InfoRow label="생일" value={customer.birthday} />}
+                {customer.anniversary && (
+                  <InfoRow label="결혼기념일" value={customer.anniversary} />
+                )}
+                {customer.contract_date && (
+                  <InfoRow label="계약기념일" value={customer.contract_date} />
+                )}
+              </View>
+            )}
+
+            {/* 라포 정보 */}
+            {(customer.hobbies?.length || customer.preferred_contact_time || customer.preferred_contact_method) && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>💬 라포 정보</Text>
+                {customer.hobbies && customer.hobbies.length > 0 && (
+                  <View style={styles.row}>
+                    <Text style={styles.rowLabel}>취미·관심사</Text>
+                    <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                      {customer.hobbies.map((h) => (
+                        <View key={h} style={styles.tagChip}>
+                          <Text style={styles.tagText}>#{h}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+                {customer.preferred_contact_time && (
+                  <InfoRow label="선호 시간" value={customer.preferred_contact_time} />
+                )}
+                {customer.preferred_contact_method && (
+                  <InfoRow label="선호 방법" value={customer.preferred_contact_method} />
+                )}
+              </View>
+            )}
+
             {/* 메모 */}
             {customer.memo && (
               <View style={styles.card}>
@@ -572,4 +628,11 @@ const styles = StyleSheet.create({
 
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyText: { fontSize: 14, color: Palette.textSub, fontWeight: '500' },
+  tagChip: {
+    backgroundColor: Palette.primarySoft,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+  },
+  tagText: { fontSize: 11, color: Palette.primaryDeep, fontWeight: '700' },
 });
