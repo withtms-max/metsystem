@@ -22,7 +22,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CampaignAddSheet } from '@/components/campaign-add-sheet';
+import { TeamCreateSheet } from '@/components/team-create-sheet';
 import { TeamEventAdd } from '@/components/team-event-add';
+import { TeamJoinSheet } from '@/components/team-join-sheet';
 import { TeamMembersSheet } from '@/components/team-members-sheet';
 import { TeamRequestsSheet } from '@/components/team-requests-sheet';
 import { useAuth } from '@/lib/auth-context';
@@ -45,6 +47,8 @@ export default function TeamHubScreen() {
   const [requestsOpen, setRequestsOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
 
   const reload = useCallback(async () => {
     if (!authUser) return;
@@ -79,6 +83,59 @@ export default function TeamHubScreen() {
       void reload();
     }, [reload]),
   );
+
+  // 활성 팀 없을 때 — Empty state
+  if (!organization) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView edges={['top']} style={{ backgroundColor: Palette.card }}>
+          <View style={styles.header}>
+            <Text style={styles.title}>팀</Text>
+            <Text style={styles.sub}>아직 활성 팀이 없어요</Text>
+          </View>
+        </SafeAreaView>
+
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyEmoji}>👥</Text>
+          <Text style={styles.emptyTitle}>팀을 만들거나 참여하세요</Text>
+          <Text style={styles.emptyDesc}>
+            팀이 있어야 시책·공지·자료실·팀 일정을 같이 쓸 수 있어요.{'\n'}
+            지금은 개인 모드로도 모든 고객·캘린더·지도 기능을 사용할 수 있어요.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.emptyPrimaryBtn}
+            onPress={() => setCreateOpen(true)}
+            activeOpacity={0.85}>
+            <Ionicons name="business" size={16} color="#FFFFFF" />
+            <Text style={styles.emptyPrimaryBtnText}>새 팀 만들기</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.emptySecondaryBtn}
+            onPress={() => setJoinOpen(true)}
+            activeOpacity={0.85}>
+            <Ionicons name="key" size={16} color={Palette.primary} />
+            <Text style={styles.emptySecondaryBtnText}>초대 코드로 참여</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TeamCreateSheet
+          visible={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => {
+            setCreateOpen(false);
+            void reload();
+          }}
+        />
+        <TeamJoinSheet
+          visible={joinOpen}
+          onClose={() => setJoinOpen(false)}
+          onRequested={() => setJoinOpen(false)}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -505,4 +562,50 @@ const styles = StyleSheet.create({
   },
   pendingTitle: { fontSize: 13, fontWeight: '700', color: Palette.primaryDeep },
   pendingSub: { fontSize: 11, color: Palette.primary, marginTop: 2 },
+
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    gap: 10,
+  },
+  emptyEmoji: { fontSize: 56 },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Palette.textMain,
+    marginTop: 12,
+  },
+  emptyDesc: {
+    fontSize: 13,
+    color: Palette.textSub,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  emptyPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Palette.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: Radius.md,
+    width: '90%',
+  },
+  emptyPrimaryBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  emptySecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Palette.primarySoft,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: Radius.md,
+    width: '90%',
+  },
+  emptySecondaryBtnText: { color: Palette.primaryDeep, fontWeight: '700', fontSize: 14 },
 });

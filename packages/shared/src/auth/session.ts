@@ -88,6 +88,12 @@ export interface OnboardingInput {
   industry?: string;
 }
 
+/** 신규 — 개인 가입 (역할·조직 없이) */
+export interface PersonalSignupInput {
+  name: string;
+  phone?: string;
+}
+
 /**
  * 온보딩 완료 — SECURITY DEFINER RPC 함수 호출.
  * 이전: 직접 .insert() 호출 → RLS RETURNING 정책 충돌 (42501).
@@ -130,4 +136,41 @@ export async function completeOnboarding(
   const profile = await loadProfile(supabase, authUserId);
   if (!profile) throw new Error('가입 후 프로필을 찾을 수 없어요');
   return profile;
+}
+
+/** 개인 가입 — 역할·조직 없이 일단 사용자 row 만 생성 */
+export async function completePersonalSignup(
+  supabase: MetSupabaseClient,
+  authUserId: string,
+  email: string | null,
+  input: PersonalSignupInput,
+): Promise<User> {
+  const { error } = await supabase.rpc('create_personal_user', {
+    p_name: input.name,
+    p_phone: input.phone ?? null,
+    p_email: email,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+  if (error) throw error;
+
+  const profile = await loadProfile(supabase, authUserId);
+  if (!profile) throw new Error('가입 후 프로필을 찾을 수 없어요');
+  return profile;
+}
+
+/** 기존 사용자가 새 팀 만들기 — owner 권한으로 추가 */
+export async function createTeam(
+  supabase: MetSupabaseClient,
+  name: string,
+  industry: string | null = null,
+  setActive = true,
+): Promise<string> {
+  const { data, error } = await supabase.rpc('create_team', {
+    p_name: name,
+    p_industry: industry,
+    p_set_active: setActive,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+  if (error) throw error;
+  return data as string;
 }

@@ -160,8 +160,8 @@ export function TeamMembersSheet({ visible, onClose }: Props) {
 
 function roleLabel(role: string): string {
   if (role === 'owner') return '오너';
-  if (role === 'manager') return '센터장';
-  return '영업맨';
+  if (role === 'manager') return '관리자';
+  return '팀원';
 }
 
 const styles = StyleSheet.create({

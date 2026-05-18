@@ -96,7 +96,7 @@ export function TeamEventAdd({ visible, onClose, onAdded, defaultDate }: Props) 
     } catch (e) {
       const msg = e instanceof Error ? e.message : '저장 실패';
       if (msg.includes('policy')) {
-        setError('센터장/오너만 팀 일정을 등록할 수 있어요');
+        setError('관리자/오너만 팀 일정을 등록할 수 있어요');
       } else {
         setError(msg);
       }

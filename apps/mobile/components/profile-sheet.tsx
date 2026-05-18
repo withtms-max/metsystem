@@ -16,6 +16,7 @@ import {
   requestNotificationPermission,
   type NotificationPermission,
 } from '@/lib/web-notifications';
+import { TeamCreateSheet } from '@/components/team-create-sheet';
 import { TeamJoinSheet } from '@/components/team-join-sheet';
 import { supabase } from '@/lib/supabase';
 import {
@@ -46,6 +47,7 @@ export function ProfileSheet({ visible, onClose }: Props) {
   const [myTeams, setMyTeams] = useState<MyTeam[]>([]);
   const [pendingRequests, setPendingRequests] = useState<JoinRequest[]>([]);
   const [joinOpen, setJoinOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [teamsLoading, setTeamsLoading] = useState(false);
 
   const reloadTeams = useCallback(async () => {
@@ -164,9 +166,9 @@ export function ProfileSheet({ visible, onClose }: Props) {
                 <View style={styles.roleChip}>
                   <Text style={styles.roleChipText}>
                     {profile.role === 'salesperson'
-                      ? '영업맨'
+                      ? '팀원'
                       : profile.role === 'manager'
-                      ? '센터장'
+                      ? '관리자'
                       : '오너'}
                   </Text>
                 </View>
@@ -180,12 +182,20 @@ export function ProfileSheet({ visible, onClose }: Props) {
           <View style={styles.teamsBox}>
             <View style={styles.teamsHead}>
               <Text style={styles.teamsLabel}>내가 속한 팀</Text>
-              <TouchableOpacity
-                style={styles.teamAddBtn}
-                onPress={() => setJoinOpen(true)}>
-                <Ionicons name="add" size={14} color={Palette.primary} />
-                <Text style={styles.teamAddBtnText}>팀 추가</Text>
-              </TouchableOpacity>
+              <View style={styles.teamHeadBtns}>
+                <TouchableOpacity
+                  style={styles.teamAddBtn}
+                  onPress={() => setCreateOpen(true)}>
+                  <Ionicons name="business" size={12} color={Palette.green} />
+                  <Text style={[styles.teamAddBtnText, { color: Palette.green }]}>팀 만들기</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.teamAddBtn}
+                  onPress={() => setJoinOpen(true)}>
+                  <Ionicons name="key" size={12} color={Palette.primary} />
+                  <Text style={styles.teamAddBtnText}>코드로 참여</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             {teamsLoading && myTeams.length === 0 ? (
               <ActivityIndicator size="small" color={Palette.primary} />
@@ -291,14 +301,23 @@ export function ProfileSheet({ visible, onClose }: Props) {
         onClose={() => setJoinOpen(false)}
         onRequested={reloadTeams}
       />
+
+      <TeamCreateSheet
+        visible={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => {
+          setCreateOpen(false);
+          void reloadTeams();
+        }}
+      />
     </Modal>
   );
 }
 
 function membershipRoleLabel(role: string): string {
   if (role === 'owner') return '오너';
-  if (role === 'manager') return '센터장';
-  return '영업맨';
+  if (role === 'manager') return '관리자';
+  return '팀원';
 }
 
 function MenuItem({
@@ -381,7 +400,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   teamsLabel: { fontSize: 11, fontWeight: '700', color: Palette.textSub },
-  teamAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  teamHeadBtns: { flexDirection: 'row', gap: 8 },
+  teamAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   teamAddBtnText: { fontSize: 11, fontWeight: '700', color: Palette.primary },
   teamsEmpty: {
     fontSize: 11,

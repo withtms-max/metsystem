@@ -29,7 +29,7 @@ interface Props {
 }
 
 /**
- * 시책 작성 — 센터장/오너 전용.
+ * 시책 작성 — 관리자/오너 전용.
  * team_events INSERT 시 event_type='campaign' + 기간 + 목표.
  */
 export function CampaignAddSheet({ visible, onClose, onAdded }: Props) {

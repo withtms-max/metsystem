@@ -1,4 +1,11 @@
-import { INDUSTRIES, type IndustryCode } from '@metsystem/shared';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  completePersonalSignup,
+  createTeam,
+  INDUSTRIES,
+  requestTeamJoin,
+  type IndustryCode,
+} from '@metsystem/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -13,16 +20,38 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 import { Palette, Radius } from '@/constants/theme';
 
-type Step = 'role' | 'salesperson' | 'manager';
+/**
+ * 단계:
+ *  1) 'personal'  — 이름·연락처 입력 (개인 가입)
+ *  2) 'team_pick' — 팀 만들기 / 참여 / 나중에
+ *  3) 'team_create' — 팀 만들기 폼
+ *  4) 'team_join'   — 초대코드 입력
+ */
+type Step = 'personal' | 'team_pick' | 'team_create' | 'team_join';
 
 export default function OnboardingScreen() {
-  const { finishOnboarding, signOut } = useAuth();
   const router = useRouter();
-  const [step, setStep] = useState<Step>('role');
+  const { authUser, refreshProfile, signOut } = useAuth();
+  const [step, setStep] = useState<Step>('personal');
+
+  // 개인 정보
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+
+  // 팀 만들기
+  const [teamName, setTeamName] = useState('');
+  const [industry, setIndustry] = useState<IndustryCode>('insurance');
+
+  // 팀 참여
+  const [inviteCode, setInviteCode] = useState('');
+  const [joinMessage, setJoinMessage] = useState('');
+
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSwitchAccount = async () => {
     try {
@@ -32,44 +61,80 @@ export default function OnboardingScreen() {
       console.error('[onboarding signOut] failed', e);
     }
   };
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
-  const [orgName, setOrgName] = useState('');
-  const [industry, setIndustry] = useState<IndustryCode>('insurance');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleFinish = async (role: 'salesperson' | 'manager') => {
+  // ============================================
+  // Step 1: 개인 가입
+  // ============================================
+  const handleSavePersonal = async () => {
     setError(null);
-    if (!name.trim()) {
-      setError('이름은 적어주세요');
-      return;
-    }
-    if (role === 'salesperson' && !inviteCode.trim()) {
-      setError('센터장한테 6자리 코드 받아오세요');
-      return;
-    }
-    if (role === 'manager' && !orgName.trim()) {
-      setError('센터 이름이 빠졌어요');
-      return;
-    }
+    if (!name.trim()) return setError('이름을 적어주세요');
+    if (!authUser) return setError('로그인이 필요해요');
     setLoading(true);
     try {
-      await finishOnboarding({
+      await completePersonalSignup(supabase, authUser.id, authUser.email ?? null, {
         name: name.trim(),
         phone: phone.trim() || undefined,
-        role,
-        inviteCode: role === 'salesperson' ? inviteCode.trim() : undefined,
-        organizationName: role === 'manager' ? orgName.trim() : undefined,
-        industry: role === 'manager' ? industry : undefined,
       });
+      await refreshProfile();
+      setStep('team_pick');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '오류가 발생했어요';
-      setError(msg);
+      const err = e as { message?: string };
+      setError(err.message ?? '저장 실패');
     } finally {
       setLoading(false);
     }
+  };
+
+  // ============================================
+  // Step 3: 팀 만들기
+  // ============================================
+  const handleCreateTeam = async () => {
+    setError(null);
+    if (!teamName.trim()) return setError('팀 이름을 적어주세요');
+    setLoading(true);
+    try {
+      await createTeam(supabase, teamName.trim(), industry, true);
+      await refreshProfile();
+      // 가입 완료 → AuthGate 가 자동 라우팅
+    } catch (e) {
+      const err = e as { message?: string };
+      setError(err.message ?? '팀 만들기 실패');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================
+  // Step 4: 팀 참여
+  // ============================================
+  const handleJoinTeam = async () => {
+    setError(null);
+    if (!inviteCode.trim()) return setError('초대 코드를 입력해주세요');
+    setLoading(true);
+    try {
+      await requestTeamJoin(
+        supabase,
+        inviteCode.trim().toUpperCase(),
+        joinMessage.trim() || undefined,
+      );
+      // 신청만 됨 — 사용자는 일단 개인 상태로 앱 사용
+      // 관리자가 승인하면 organization_id 자동 업데이트
+      setStep('team_pick');
+      // 토스트나 알림이 있으면 좋지만 V1 은 그냥 다시 pick 으로
+    } catch (e) {
+      const err = e as { message?: string };
+      setError(err.message ?? '신청 실패');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================
+  // 나중에 정할게요 — 개인 모드로 앱 진입
+  // ============================================
+  const handleSkipTeam = async () => {
+    await refreshProfile();
+    // AuthGate 가 profile 보고 자동 라우팅
   };
 
   return (
@@ -78,57 +143,11 @@ export default function OnboardingScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {step === 'role' ? (
+          {/* Step 1: 개인 정보 */}
+          {step === 'personal' && (
             <View>
-              <Text style={styles.title}>잠깐,{'\n'}둘 중 어느 쪽이세요?</Text>
-              <Text style={styles.subtitle}>역할에 따라 보이는 화면이 달라요</Text>
-
-              <View style={styles.roleCards}>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.roleCard}
-                  onPress={() => setStep('salesperson')}>
-                  <View style={[styles.roleIcon, { backgroundColor: Palette.primarySoft }]}>
-                    <Ionicons name="person-outline" size={26} color={Palette.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.roleTitle}>저, 영업합니다</Text>
-                    <Text style={styles.roleSub}>
-                      고객·영업판·동선 — 다 폰에서 처리할게요
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={Palette.textMuted} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.roleCard}
-                  onPress={() => setStep('manager')}>
-                  <View style={[styles.roleIcon, { backgroundColor: Palette.greenBg }]}>
-                    <Ionicons name="people-outline" size={26} color={Palette.green} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.roleTitle}>저, 센터장입니다</Text>
-                    <Text style={styles.roleSub}>
-                      팀 부르고 활동만 봐요 (고객 정보는 안 봐요)
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={Palette.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity onPress={handleSwitchAccount} style={styles.signOut}>
-                <Text style={styles.signOutText}>다른 계정으로 다시</Text>
-              </TouchableOpacity>
-            </View>
-          ) : step === 'salesperson' ? (
-            <View>
-              <TouchableOpacity onPress={() => setStep('role')} style={styles.back} hitSlop={8}>
-                <Ionicons name="arrow-back" size={24} color={Palette.textMain} />
-              </TouchableOpacity>
-
-              <Text style={styles.title}>좋아요,{'\n'}몇 가지만 알려주세요</Text>
-              <Text style={styles.subtitle}>센터장한테 받은 6자리 코드가 필요해요</Text>
+              <Text style={styles.title}>안녕하세요!{'\n'}어떻게 부르면 될까요?</Text>
+              <Text style={styles.subtitle}>먼저 본인 정보를 입력해주세요</Text>
 
               <View style={styles.form}>
                 <Field label="이름">
@@ -138,6 +157,7 @@ export default function OnboardingScreen() {
                     placeholderTextColor={Palette.textMuted}
                     value={name}
                     onChangeText={setName}
+                    autoFocus
                   />
                 </Field>
 
@@ -152,62 +172,77 @@ export default function OnboardingScreen() {
                   />
                 </Field>
 
-                <Field label="초대 코드">
-                  <TextInput
-                    style={[styles.input, styles.inputCode]}
-                    placeholder="ABC123"
-                    placeholderTextColor={Palette.textMuted}
-                    autoCapitalize="characters"
-                    value={inviteCode}
-                    onChangeText={(t) => setInviteCode(t.toUpperCase())}
-                    maxLength={6}
-                  />
-                </Field>
-
                 {error && <ErrorBox text={error} />}
 
                 <TouchableOpacity
-                  activeOpacity={0.85}
                   style={[styles.submit, loading && styles.submitLoading]}
-                  onPress={() => handleFinish('salesperson')}
+                  onPress={handleSavePersonal}
                   disabled={loading}>
-                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>들어가기</Text>}
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitText}>다음</Text>
+                  )}
                 </TouchableOpacity>
               </View>
-            </View>
-          ) : (
-            <View>
-              <TouchableOpacity onPress={() => setStep('role')} style={styles.back} hitSlop={8}>
-                <Ionicons name="arrow-back" size={24} color={Palette.textMain} />
-              </TouchableOpacity>
 
-              <Text style={styles.title}>좋습니다,{'\n'}센터 한번 차려봅시다</Text>
-              <Text style={styles.subtitle}>만들면 팀원 부를 6자리 코드 바로 나와요</Text>
+              <TouchableOpacity onPress={handleSwitchAccount} style={styles.signOut}>
+                <Text style={styles.signOutText}>다른 계정으로 다시</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Step 2: 팀 선택 */}
+          {step === 'team_pick' && (
+            <View>
+              <Text style={styles.title}>좋아요!{'\n'}어떻게 시작할까요?</Text>
+              <Text style={styles.subtitle}>나중에 언제든 바꿀 수 있어요</Text>
+
+              <View style={styles.cards}>
+                <ActionCard
+                  emoji="🏢"
+                  title="새 팀 만들기"
+                  desc="내가 관리자가 되어서 팀원을 초대할게요"
+                  onPress={() => setStep('team_create')}
+                />
+                <ActionCard
+                  emoji="🔑"
+                  title="초대 코드로 참여"
+                  desc="이미 만들어진 팀의 코드를 받았어요"
+                  onPress={() => setStep('team_join')}
+                />
+                <ActionCard
+                  emoji="💁"
+                  title="혼자 써볼게요"
+                  desc="개인 영업 노트로 먼저 사용 — 나중에 팀 만들기 가능"
+                  onPress={handleSkipTeam}
+                  variant="soft"
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Step 3: 팀 만들기 */}
+          {step === 'team_create' && (
+            <View>
+              <BackBtn onPress={() => setStep('team_pick')} />
+              <Text style={styles.title}>팀 한번{'\n'}만들어봅시다</Text>
+              <Text style={styles.subtitle}>만들면 팀원 초대할 6자리 코드가 나와요</Text>
 
               <View style={styles.form}>
-                <Field label="이름">
+                <Field label="팀 이름">
                   <TextInput
                     style={styles.input}
-                    placeholder="박센터장"
+                    placeholder="강남팀 / 우리 가족 / 광림교회 셀"
                     placeholderTextColor={Palette.textMuted}
-                    value={name}
-                    onChangeText={setName}
+                    value={teamName}
+                    onChangeText={setTeamName}
                   />
                 </Field>
 
-                <Field label="센터 이름">
-                  <TextInput
-                    style={styles.input}
-                    placeholder="강남센터"
-                    placeholderTextColor={Palette.textMuted}
-                    value={orgName}
-                    onChangeText={setOrgName}
-                  />
-                </Field>
-
-                <Field label="업종">
+                <Field label="업종 (필드 노출 결정)">
                   <Text style={styles.industryHint}>
-                    업종에 따라 고객 등록 화면·핀 종류가 달라져요
+                    업종에 따라 고객 등록 화면이 달라져요
                   </Text>
                   <View style={styles.industryRow}>
                     {INDUSTRIES.map((i) => (
@@ -234,12 +269,65 @@ export default function OnboardingScreen() {
                 {error && <ErrorBox text={error} />}
 
                 <TouchableOpacity
-                  activeOpacity={0.85}
                   style={[styles.submit, loading && styles.submitLoading]}
-                  onPress={() => handleFinish('manager')}
+                  onPress={handleCreateTeam}
                   disabled={loading}>
-                  {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.submitText}>차리기</Text>}
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitText}>팀 만들기</Text>
+                  )}
                 </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Step 4: 팀 참여 */}
+          {step === 'team_join' && (
+            <View>
+              <BackBtn onPress={() => setStep('team_pick')} />
+              <Text style={styles.title}>초대 코드를{'\n'}입력해주세요</Text>
+              <Text style={styles.subtitle}>관리자한테 받은 6자리 코드가 필요해요</Text>
+
+              <View style={styles.form}>
+                <Field label="초대 코드">
+                  <TextInput
+                    style={[styles.input, styles.inputCode]}
+                    placeholder="ABC123"
+                    placeholderTextColor={Palette.textMuted}
+                    autoCapitalize="characters"
+                    value={inviteCode}
+                    onChangeText={(t) => setInviteCode(t.toUpperCase())}
+                    maxLength={8}
+                  />
+                </Field>
+
+                <Field label="인사말 (선택)">
+                  <TextInput
+                    style={styles.input}
+                    placeholder="안녕하세요, OO입니다"
+                    placeholderTextColor={Palette.textMuted}
+                    value={joinMessage}
+                    onChangeText={setJoinMessage}
+                  />
+                </Field>
+
+                {error && <ErrorBox text={error} />}
+
+                <TouchableOpacity
+                  style={[styles.submit, loading && styles.submitLoading]}
+                  onPress={handleJoinTeam}
+                  disabled={loading}>
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.submitText}>가입 신청</Text>
+                  )}
+                </TouchableOpacity>
+
+                <Text style={styles.helpText}>
+                  신청 후 관리자가 승인하면 팀에 들어가져요. 그동안은 혼자 써도 OK.
+                </Text>
               </View>
             </View>
           )}
@@ -266,6 +354,42 @@ function ErrorBox({ text }: { text: string }) {
   );
 }
 
+function BackBtn({ onPress }: { onPress: () => void }) {
+  return (
+    <TouchableOpacity onPress={onPress} style={styles.back} hitSlop={8}>
+      <Ionicons name="arrow-back" size={24} color={Palette.textMain} />
+    </TouchableOpacity>
+  );
+}
+
+function ActionCard({
+  emoji,
+  title,
+  desc,
+  onPress,
+  variant,
+}: {
+  emoji: string;
+  title: string;
+  desc: string;
+  onPress: () => void;
+  variant?: 'soft';
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={[styles.actionCard, variant === 'soft' && styles.actionCardSoft]}>
+      <Text style={styles.actionEmoji}>{emoji}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.actionTitle}>{title}</Text>
+        <Text style={styles.actionDesc}>{desc}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={Palette.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Palette.bg },
   scroll: { padding: 24, paddingBottom: 40 },
@@ -282,8 +406,8 @@ const styles = StyleSheet.create({
   },
   subtitle: { fontSize: 15, color: Palette.textSub, marginTop: 12, marginBottom: 32 },
 
-  roleCards: { gap: 10 },
-  roleCard: {
+  cards: { gap: 10 },
+  actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.card,
@@ -291,15 +415,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     gap: 14,
   },
-  roleIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  roleTitle: { fontSize: 16, fontWeight: '700', color: Palette.textMain },
-  roleSub: { fontSize: 13, color: Palette.textSub, marginTop: 4, lineHeight: 18 },
+  actionCardSoft: { backgroundColor: Palette.grayBg },
+  actionEmoji: { fontSize: 32 },
+  actionTitle: { fontSize: 16, fontWeight: '700', color: Palette.textMain },
+  actionDesc: { fontSize: 13, color: Palette.textSub, marginTop: 4, lineHeight: 18 },
 
   form: { gap: 18 },
   label: { fontSize: 13, fontWeight: '700', color: Palette.textSub, marginBottom: 8 },
@@ -315,6 +434,19 @@ const styles = StyleSheet.create({
     borderColor: Palette.borderStrong,
   },
   inputCode: { letterSpacing: 6, fontWeight: '700', textAlign: 'center', fontSize: 20 },
+
+  industryHint: { fontSize: 12, color: Palette.textMuted, marginBottom: 10 },
+  industryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  industryChip: {
+    paddingHorizontal: 16,
+    height: 40,
+    backgroundColor: Palette.grayBg,
+    borderRadius: Radius.pill,
+    justifyContent: 'center',
+  },
+  industryChipActive: { backgroundColor: Palette.primary },
+  industryText: { color: Palette.textSub, fontWeight: '600', fontSize: 13 },
+  industryTextActive: { color: '#FFFFFF' },
 
   errorBox: {
     backgroundColor: Palette.redBg,
@@ -335,18 +467,13 @@ const styles = StyleSheet.create({
   submitLoading: { opacity: 0.7 },
   submitText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
 
-  industryHint: { fontSize: 12, color: Palette.textMuted, marginBottom: 10 },
-  industryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  industryChip: {
-    paddingHorizontal: 16,
-    height: 40,
-    backgroundColor: Palette.grayBg,
-    borderRadius: Radius.pill,
-    justifyContent: 'center',
+  helpText: {
+    fontSize: 12,
+    color: Palette.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 17,
   },
-  industryChipActive: { backgroundColor: Palette.primary },
-  industryText: { color: Palette.textSub, fontWeight: '600', fontSize: 13 },
-  industryTextActive: { color: '#FFFFFF' },
 
   signOut: { alignItems: 'center', marginTop: 28, padding: 12 },
   signOutText: { color: Palette.textMuted, fontSize: 14, fontWeight: '600' },
