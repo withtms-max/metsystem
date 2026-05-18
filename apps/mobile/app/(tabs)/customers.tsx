@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCustomers } from '@/hooks/use-customers';
-import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
+import { GradeColor, Palette, Radius } from '@/constants/theme';
 
 const GRADES: ('전체' | CustomerGrade)[] = ['전체', 'A', 'B', 'C', 'D'];
 
@@ -91,75 +91,88 @@ export default function CustomersScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView edges={['top']} style={styles.headerWrap}>
-        <View style={styles.headerInner}>
-          <View>
-            <Text style={styles.headerTitle}>고객</Text>
-            <Text style={styles.headerSub}>총 {customers.length}명</Text>
+      <SafeAreaView edges={['top']}>
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.headerTitle}>고객</Text>
+              <Text style={styles.headerSub}>총 {customers.length}명</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.iconBtn} onPress={handleDownloadTemplate} hitSlop={6}>
+                <Ionicons name="document-text-outline" size={18} color={Palette.textMain} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn} onPress={handleExportMyData} hitSlop={6}>
+                <Ionicons name="download-outline" size={18} color={Palette.textMain} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={() => router.push('/customer/new')}
+                activeOpacity={0.85}>
+                <Ionicons name="add" size={16} color="#FFFFFF" />
+                <Text style={styles.addBtnText}>고객 추가</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconBtn} onPress={handleDownloadTemplate}>
-              <Ionicons name="document-outline" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={handleExportMyData}>
-              <Ionicons name="download-outline" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.addBtn}
-              onPress={() => router.push('/customer/new')}>
-              <Ionicons name="add" size={18} color={Palette.graphite} />
-              <Text style={styles.addBtnText}>고객 추가</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
 
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={16} color={Palette.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="이름 또는 회사 검색"
-            placeholderTextColor={Palette.textMuted}
-            value={search}
-            onChangeText={setSearch}
-          />
+          {/* 검색 */}
+          <View style={styles.searchBox}>
+            <Ionicons name="search-outline" size={16} color={Palette.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="이름 또는 회사 검색"
+              placeholderTextColor={Palette.textMuted}
+              value={search}
+              onChangeText={setSearch}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color={Palette.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* 등급 필터 */}
+          <View style={styles.filterRow}>
+            {GRADES.map((g) => (
+              <TouchableOpacity
+                key={g}
+                onPress={() => setSelectedGrade(g)}
+                style={[styles.chip, selectedGrade === g && styles.chipActive]}
+                activeOpacity={0.7}>
+                <Text style={[styles.chipText, selectedGrade === g && styles.chipTextActive]}>
+                  {g === '전체' ? g : `${g}등급`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* 지역 필터 (있을 때만) */}
+          {regionOptions.length > 1 && (
+            <View style={[styles.filterRow, { marginTop: 8 }]}>
+              {regionOptions.map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  onPress={() => setSelectedRegion(r)}
+                  style={[styles.chip, selectedRegion === r && styles.chipActiveAlt]}
+                  activeOpacity={0.7}>
+                  <Text style={[styles.chipText, selectedRegion === r && styles.chipTextActive]}>
+                    {r === '전체' ? '전체 지역' : r}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
       </SafeAreaView>
 
-      <View style={styles.filterRow}>
-        {GRADES.map((g) => (
-          <TouchableOpacity
-            key={g}
-            onPress={() => setSelectedGrade(g)}
-            style={[styles.chip, selectedGrade === g && styles.chipActive]}>
-            <Text style={[styles.chipText, selectedGrade === g && styles.chipTextActive]}>
-              {g === '전체' ? g : `${g}등급`}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {regionOptions.length > 1 && (
-        <View style={styles.filterRow}>
-          {regionOptions.map((r) => (
-            <TouchableOpacity
-              key={r}
-              onPress={() => setSelectedRegion(r)}
-              style={[styles.chip, selectedRegion === r && styles.chipActiveAlt]}>
-              <Text style={[styles.chipText, selectedRegion === r && styles.chipTextActive]}>
-                {r === '전체' ? '전체' : `📍 ${r}`}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      <Text style={styles.listLabel}>전체 {customers.length}</Text>
-
       {error ? (
         <View style={styles.empty}>
-          <Ionicons name="warning-outline" size={48} color={Palette.orange} />
-          <Text style={styles.emptyText}>{error.message}</Text>
-          <Text style={styles.emptyHint}>Supabase 연결 또는 환경변수 확인 필요</Text>
+          <View style={styles.emptyIconBox}>
+            <Ionicons name="alert-circle-outline" size={28} color={Palette.orange} />
+          </View>
+          <Text style={styles.emptyTitle}>불러올 수 없어요</Text>
+          <Text style={styles.emptySub}>{error.message}</Text>
         </View>
       ) : isLoading ? (
         <View style={styles.empty}>
@@ -167,16 +180,25 @@ export default function CustomersScreen() {
         </View>
       ) : customers.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="people-outline" size={48} color={Palette.textMuted} />
-          <Text style={styles.emptyText}>아직 등록된 고객이 없어요</Text>
-          <Text style={styles.emptyHint}>우측 상단 + 버튼으로 첫 고객을 등록해보세요</Text>
+          <View style={styles.emptyIconBox}>
+            <Ionicons name="people-outline" size={28} color={Palette.textMuted} />
+          </View>
+          <Text style={styles.emptyTitle}>아직 등록된 고객이 없어요</Text>
+          <Text style={styles.emptySub}>우측 상단 + 고객 추가로 시작해보세요</Text>
         </View>
       ) : (
         <FlatList
           data={customers}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => <CustomerCard customer={item} onPress={() => router.push({ pathname: '/customer/[id]', params: { id: item.id } })} />}
+          renderItem={({ item }) => (
+            <CustomerCard
+              customer={item}
+              onPress={() =>
+                router.push({ pathname: '/customer/[id]', params: { id: item.id } })
+              }
+            />
+          )}
         />
       )}
     </View>
@@ -185,13 +207,12 @@ export default function CustomersScreen() {
 
 function CustomerCard({ customer, onPress }: { customer: Customer; onPress: () => void }) {
   const grade = GradeColor[customer.grade];
+  const initial = (customer.company ?? customer.name).slice(0, 1);
 
   return (
-    <TouchableOpacity style={styles.customerCard} onPress={onPress}>
-      <View style={styles.customerAvatar}>
-        <Text style={styles.customerAvatarText}>
-          {(customer.company ?? customer.name).slice(0, 1)}
-        </Text>
+    <TouchableOpacity style={styles.customerCard} onPress={onPress} activeOpacity={0.85}>
+      <View style={[styles.customerAvatar, { backgroundColor: grade.bg }]}>
+        <Text style={[styles.customerAvatarText, { color: grade.fg }]}>{initial}</Text>
       </View>
       <View style={{ flex: 1 }}>
         <View style={styles.customerHeadRow}>
@@ -200,9 +221,9 @@ function CustomerCard({ customer, onPress }: { customer: Customer; onPress: () =
           </Text>
           <Text style={styles.customerActivity}>{formatActivity(customer.updated_at)}</Text>
         </View>
-        <Text style={styles.customerContact}>
-          담당자: {customer.name}
-          {customer.job_title ? ` ${customer.job_title}` : ''}
+        <Text style={styles.customerContact} numberOfLines={1}>
+          {customer.name}
+          {customer.job_title ? ` · ${customer.job_title}` : ''}
         </Text>
         <View style={styles.customerMeta}>
           <View style={[styles.gradeChip, { backgroundColor: grade.bg }]}>
@@ -212,16 +233,13 @@ function CustomerCard({ customer, onPress }: { customer: Customer; onPress: () =
             </Text>
           </View>
           {customer.region_tag && (
-            <Text style={styles.metaSep}>·</Text>
-          )}
-          {customer.region_tag && (
-            <Text style={styles.regionText}>📍 {customer.region_tag}</Text>
+            <View style={styles.regionChip}>
+              <Ionicons name="location-outline" size={11} color={Palette.textSub} />
+              <Text style={styles.regionText}>{customer.region_tag}</Text>
+            </View>
           )}
         </View>
       </View>
-      <TouchableOpacity style={styles.moreBtn} hitSlop={8}>
-        <Ionicons name="ellipsis-vertical" size={16} color={Palette.textMuted} />
-      </TouchableOpacity>
     </TouchableOpacity>
   );
 }
@@ -229,24 +247,29 @@ function CustomerCard({ customer, onPress }: { customer: Customer; onPress: () =
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Palette.bg },
 
-  // Header
-  headerWrap: { backgroundColor: Palette.graphite, paddingBottom: 16 },
-  headerInner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  // Header — Toss style 라이트 톤
+  header: {
+    backgroundColor: Palette.card,
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Palette.border,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: '#FFFFFF' },
-  headerSub: { fontSize: 12, color: '#CBD5E1', marginTop: 4 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: Palette.textMain, letterSpacing: -0.3 },
+  headerSub: { fontSize: 12, color: Palette.textSub, marginTop: 2 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   iconBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: Palette.grayBg,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -254,57 +277,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Palette.primary,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: Radius.md,
+    marginLeft: 2,
   },
-  addBtnText: { fontSize: 12, fontWeight: '700', color: Palette.graphite },
+  addBtnText: { fontSize: 13, fontWeight: '700', color: '#FFFFFF' },
 
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginHorizontal: 20,
+    backgroundColor: Palette.grayBg,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: Radius.md,
     gap: 8,
   },
-  searchInput: { flex: 1, fontSize: 13, color: '#FFFFFF' },
+  searchInput: { flex: 1, fontSize: 14, color: Palette.textMain },
 
-  // Filters
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    gap: 6,
-  },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: Palette.card,
+    backgroundColor: Palette.grayBg,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Palette.border,
   },
-  chipActive: { backgroundColor: Palette.graphite, borderColor: Palette.graphite },
-  chipActiveAlt: { backgroundColor: Palette.primary, borderColor: Palette.primary },
+  chipActive: { backgroundColor: Palette.textMain },
+  chipActiveAlt: { backgroundColor: Palette.primary },
   chipText: { fontSize: 12, fontWeight: '600', color: Palette.textSub },
   chipTextActive: { color: '#FFFFFF' },
 
-  listLabel: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-    fontSize: 12,
-    color: Palette.textSub,
-    fontWeight: '600',
-  },
-
   // List
-  list: { paddingHorizontal: 16, paddingBottom: 24 },
+  list: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
   customerCard: {
     flexDirection: 'row',
     backgroundColor: Palette.card,
@@ -315,17 +320,15 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: Palette.border,
-    ...Shadow.card,
   },
   customerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Palette.primarySoft,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  customerAvatarText: { color: Palette.primaryDeep, fontWeight: '700', fontSize: 16 },
+  customerAvatarText: { fontWeight: '700', fontSize: 17 },
 
   customerHeadRow: {
     flexDirection: 'row',
@@ -335,8 +338,8 @@ const styles = StyleSheet.create({
   customerCompany: { fontSize: 15, fontWeight: '700', color: Palette.textMain, flex: 1 },
   customerActivity: { fontSize: 11, color: Palette.textMuted, marginLeft: 8 },
   customerContact: { fontSize: 12, color: Palette.textSub, marginTop: 2 },
-
   customerMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 6 },
+
   gradeChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -347,13 +350,33 @@ const styles = StyleSheet.create({
   },
   gradeDot: { width: 6, height: 6, borderRadius: 3 },
   gradeChipText: { fontSize: 11, fontWeight: '600' },
-  metaSep: { color: Palette.textMuted, fontSize: 11 },
+  regionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.grayBg,
+  },
   regionText: { fontSize: 11, color: Palette.textSub, fontWeight: '500' },
 
-  moreBtn: { padding: 4 },
-
   // Empty
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyText: { fontSize: 14, fontWeight: '600', color: Palette.textMain, marginTop: 16 },
-  emptyHint: { fontSize: 12, color: Palette.textSub, marginTop: 6, textAlign: 'center' },
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Palette.grayBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: Palette.textMain, marginBottom: 6 },
+  emptySub: { fontSize: 13, color: Palette.textSub, textAlign: 'center', lineHeight: 20 },
 });
