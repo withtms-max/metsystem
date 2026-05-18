@@ -108,6 +108,34 @@ export async function listStaleCustomers(
   return (data ?? []) as Customer[];
 }
 
+/** 점진적 무연락 단계 — UX 강도 결정용 */
+export type StaleLevel = 'fresh' | 'warning' | 'concerning' | 'critical';
+
+export function staleLevelOf(customer: Customer): StaleLevel {
+  const last = customer.last_contact_at;
+  if (!last) {
+    // 한 번도 활동 없는 신규 — 등록일 기준
+    const createdMs = new Date(customer.created_at).getTime();
+    const daysSinceCreated = (Date.now() - createdMs) / 86_400_000;
+    if (daysSinceCreated < 30) return 'fresh';
+    if (daysSinceCreated < 60) return 'warning';
+    if (daysSinceCreated < 90) return 'concerning';
+    return 'critical';
+  }
+  const daysSince = (Date.now() - new Date(last).getTime()) / 86_400_000;
+  if (daysSince < 30) return 'fresh';
+  if (daysSince < 60) return 'warning';
+  if (daysSince < 90) return 'concerning';
+  return 'critical';
+}
+
+export function daysSinceLastContact(customer: Customer): number {
+  const baseMs = customer.last_contact_at
+    ? new Date(customer.last_contact_at).getTime()
+    : new Date(customer.created_at).getTime();
+  return Math.floor((Date.now() - baseMs) / 86_400_000);
+}
+
 /**
  * 이번 주 안에 예정된 next_action 들 — 홈 화면에 "오늘 만날 사람"보다 액션 중심.
  */

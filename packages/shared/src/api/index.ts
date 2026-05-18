@@ -5,3 +5,4 @@ export * from './templates';
 export * from './calendar';
 export * from './golden-time';
 export * from './team-events';
+export * from './call';

@@ -3,6 +3,7 @@ import {
   currentMonthKey,
   formatMonthKeyKorean,
   listActivities,
+  startCall,
   type ActivityLog,
   type Customer,
   type CustomerGrade,
@@ -20,6 +21,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CallSheet } from '@/components/call-sheet';
 import { useAuth } from '@/lib/auth-context';
 import { useCustomers } from '@/hooks/use-customers';
 import { usePipeline } from '@/hooks/use-pipeline';
@@ -38,11 +40,12 @@ const TABS: { key: Tab; label: string }[] = [
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { authUser } = useAuth();
+  const { authUser, profile } = useAuth();
   const { customers, update, isLoading } = useCustomers();
   const monthKey = currentMonthKey();
   const { cards, add: addToPipeline } = usePipeline(monthKey);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [callLogId, setCallLogId] = useState<string | null>(null);
   const [pipelineLoading, setPipelineLoading] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
 
@@ -80,8 +83,27 @@ export default function CustomerDetailScreen() {
 
   const grade = GradeColor[customer.grade];
 
-  const handleCall = () => {
-    if (customer.phone) Linking.openURL(`tel:${customer.phone}`).catch(() => {});
+  const handleCall = async () => {
+    if (!customer.phone || !authUser || !profile?.organization_id) return;
+    try {
+      const { logId, telUrl } = await startCall(supabase, {
+        userId: authUser.id,
+        organizationId: profile.organization_id,
+        customerId: customer.id,
+        phone: customer.phone,
+      });
+      // 모바일/web 둘 다 tel: 호출 시도 (web 데스크톱은 실패해도 로그는 남음)
+      Linking.openURL(telUrl).catch(() => {});
+      setCallLogId(logId);
+    } catch (e) {
+      console.warn('[call] start failed', e);
+      Linking.openURL(`tel:${customer.phone}`).catch(() => {});
+    }
+  };
+
+  const reloadActivities = () => {
+    if (!id) return;
+    void listActivities(supabase, { customerId: id }).then(setActivities).catch(() => {});
   };
 
   const handleAddToPipeline = async () => {
@@ -406,6 +428,14 @@ export default function CustomerDetailScreen() {
           <Text style={styles.bottomBtnPrimaryText}>메모 작성</Text>
         </TouchableOpacity>
       </SafeAreaView>
+
+      {/* 통화 후 메모 시트 — 자동으로 뜸 */}
+      <CallSheet
+        callLogId={callLogId}
+        customer={customer}
+        onClose={() => setCallLogId(null)}
+        onSaved={reloadActivities}
+      />
     </View>
   );
 }

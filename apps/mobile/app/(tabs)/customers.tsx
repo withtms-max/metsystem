@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
   buildNaturalMarketCsv,
+  daysSinceLastContact,
   downloadCsv,
+  staleLevelOf,
+  startCall,
   timestampForFilename,
   type Customer,
   type CustomerGrade,
@@ -12,6 +15,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Linking,
   Platform,
   StyleSheet,
   Text,
@@ -20,7 +24,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BulkImportSheet } from '@/components/bulk-import-sheet';
+import { CallSheet } from '@/components/call-sheet';
+import { useAuth } from '@/lib/auth-context';
 import { useCustomers } from '@/hooks/use-customers';
+import { supabase } from '@/lib/supabase';
 import { GradeColor, Palette, Radius } from '@/constants/theme';
 
 const GRADES: ('전체' | CustomerGrade)[] = ['전체', 'A', 'B', 'C', 'D'];
@@ -38,9 +46,30 @@ function formatActivity(dateStr: string): string {
 
 export default function CustomersScreen() {
   const router = useRouter();
+  const { authUser, profile } = useAuth();
   const [selectedGrade, setSelectedGrade] = useState<(typeof GRADES)[number]>('전체');
   const [selectedRegion, setSelectedRegion] = useState('전체');
   const [search, setSearch] = useState('');
+  const [callLogId, setCallLogId] = useState<string | null>(null);
+  const [callTarget, setCallTarget] = useState<Customer | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  const handleCall = async (customer: Customer) => {
+    if (!customer.phone || !authUser || !profile?.organization_id) return;
+    try {
+      const { logId, telUrl } = await startCall(supabase, {
+        userId: authUser.id,
+        organizationId: profile.organization_id,
+        customerId: customer.id,
+        phone: customer.phone,
+      });
+      Linking.openURL(telUrl).catch(() => {});
+      setCallLogId(logId);
+      setCallTarget(customer);
+    } catch (e) {
+      console.warn('[call] start failed', e);
+    }
+  };
 
   const filters = useMemo(
     () => ({
@@ -106,6 +135,9 @@ export default function CustomersScreen() {
               <Text style={styles.headerSub}>총 {customers.length}명</Text>
             </View>
             <View style={styles.headerActions}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setBulkOpen(true)} hitSlop={6}>
+                <Ionicons name="cloud-upload-outline" size={18} color={Palette.primary} />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.iconBtn} onPress={handleDownloadTemplate} hitSlop={6}>
                 <Ionicons name="document-text-outline" size={18} color={Palette.textMain} />
               </TouchableOpacity>
@@ -204,17 +236,46 @@ export default function CustomersScreen() {
               onPress={() =>
                 router.push({ pathname: '/customer/[id]', params: { id: item.id } })
               }
+              onCall={() => handleCall(item)}
             />
           )}
         />
       )}
+
+      <CallSheet
+        callLogId={callLogId}
+        customer={callTarget}
+        onClose={() => {
+          setCallLogId(null);
+          setCallTarget(null);
+        }}
+        onSaved={reload}
+      />
+
+      <BulkImportSheet
+        visible={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onImported={() => {
+          void reload();
+        }}
+      />
     </View>
   );
 }
 
-function CustomerCard({ customer, onPress }: { customer: Customer; onPress: () => void }) {
+function CustomerCard({
+  customer,
+  onPress,
+  onCall,
+}: {
+  customer: Customer;
+  onPress: () => void;
+  onCall: () => void;
+}) {
   const grade = GradeColor[customer.grade];
   const initial = (customer.company ?? customer.name).slice(0, 1);
+  const stale = staleLevelOf(customer);
+  const daysSince = daysSinceLastContact(customer);
 
   return (
     <TouchableOpacity style={styles.customerCard} onPress={onPress} activeOpacity={0.85}>
@@ -226,7 +287,7 @@ function CustomerCard({ customer, onPress }: { customer: Customer; onPress: () =
           <Text style={styles.customerCompany} numberOfLines={1}>
             {customer.company ?? customer.name}
           </Text>
-          <Text style={styles.customerActivity}>{formatActivity(customer.updated_at)}</Text>
+          <StaleBadge level={stale} days={daysSince} />
         </View>
         <Text style={styles.customerContact} numberOfLines={1}>
           {customer.name}
@@ -247,7 +308,34 @@ function CustomerCard({ customer, onPress }: { customer: Customer; onPress: () =
           )}
         </View>
       </View>
+      {/* 📞 빠른 전화 — 인앱 호출 + 자동 로그 */}
+      {customer.phone && (
+        <TouchableOpacity
+          style={styles.callBtn}
+          onPress={(e) => {
+            e.stopPropagation();
+            onCall();
+          }}
+          hitSlop={6}
+          activeOpacity={0.8}>
+          <Ionicons name="call" size={16} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
+  );
+}
+
+function StaleBadge({ level, days }: { level: ReturnType<typeof staleLevelOf>; days: number }) {
+  if (level === 'fresh')
+    return <Text style={styles.customerActivity}>{days}일 전</Text>;
+  const color =
+    level === 'warning' ? Palette.textMuted : level === 'concerning' ? Palette.orange : Palette.red;
+  const label =
+    level === 'warning' ? `${days}일 무연락` : level === 'concerning' ? `${days}일 무연락` : `${days}일 무연락 ⚠`;
+  return (
+    <View style={[styles.staleBadge, { backgroundColor: color + '20' }]}>
+      <Text style={[styles.staleBadgeText, { color }]}>{label}</Text>
+    </View>
   );
 }
 
@@ -344,6 +432,21 @@ const styles = StyleSheet.create({
   },
   customerCompany: { fontSize: 15, fontWeight: '700', color: Palette.textMain, flex: 1 },
   customerActivity: { fontSize: 11, color: Palette.textMuted, marginLeft: 8 },
+  staleBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  staleBadgeText: { fontSize: 10, fontWeight: '700' },
+  callBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Palette.green,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   customerContact: { fontSize: 12, color: Palette.textSub, marginTop: 2 },
   customerMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 6 },
 
