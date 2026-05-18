@@ -2,8 +2,10 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Palette } from '@/constants/theme';
+import { usePendingRequests } from '@/hooks/use-pending-requests';
 
 export default function TabLayout() {
+  const { count: pendingCount } = usePendingRequests();
   return (
     <Tabs
       screenOptions={{
@@ -72,6 +74,16 @@ export default function TabLayout() {
               color={color}
             />
           ),
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: Palette.red,
+            color: '#FFFFFF',
+            fontSize: 10,
+            fontWeight: '700',
+            minWidth: 16,
+            height: 16,
+            lineHeight: 16,
+          },
         }}
       />
       <Tabs.Screen

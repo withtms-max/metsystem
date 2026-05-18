@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import { showNotification } from '@/lib/web-notifications';
 import { useDailyCounts } from '@/hooks/use-daily-counts';
+import { usePendingRequests } from '@/hooks/use-pending-requests';
 import { usePipeline } from '@/hooks/use-pipeline';
 import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
 import { ProfileSheet } from '@/components/profile-sheet';
@@ -40,6 +41,7 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const { counts } = useDailyCounts();
   const { byStage } = usePipeline(currentMonthKey());
+  const { count: pendingCount, refresh: refreshPending } = usePendingRequests();
   const [profileOpen, setProfileOpen] = useState(false);
   const [staleCustomers, setStaleCustomers] = useState<Customer[]>([]);
   const [upcomingActions, setUpcomingActions] = useState<Customer[]>([]);
@@ -89,8 +91,21 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       void reloadIntel();
-    }, [reloadIntel]),
+      void refreshPending();
+    }, [reloadIntel, refreshPending]),
   );
+
+  // 가입 신청 대기 시 브라우저 알림 (24시간 dedup)
+  useEffect(() => {
+    if (pendingCount > 0) {
+      const today = new Date().toISOString().slice(0, 10);
+      showNotification(`팀 가입 신청 ${pendingCount}건 대기 중`, {
+        body: '팀 탭에서 승인·거절할 수 있어요',
+        dedupKey: `pending-requests-${today}`,
+        onClick: () => router.push('/(tabs)/team' as never),
+      });
+    }
+  }, [pendingCount, router]);
 
   const userName = profile?.name ?? '영업맨';
   const meetingsDone = counts.meeting;
@@ -168,6 +183,25 @@ export default function HomeScreen() {
             );
           })}
         </View>
+
+        {/* 👥 관리자: 가입 신청 대기 */}
+        {pendingCount > 0 && (
+          <TouchableOpacity
+            style={styles.pendingHomeBanner}
+            onPress={() => router.push('/(tabs)/team' as never)}
+            activeOpacity={0.85}>
+            <View style={styles.pendingHomeIcon}>
+              <Ionicons name="person-add" size={14} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingHomeTitle}>
+                팀 가입 신청 {pendingCount}건 대기
+              </Text>
+              <Text style={styles.pendingHomeSub}>팀 탭에서 승인·거절</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={Palette.red} />
+          </TouchableOpacity>
+        )}
 
         {/* 🎯 다음 7일 액션 — 까먹지 말기 */}
         {upcomingActions.length > 0 && (
@@ -644,6 +678,28 @@ const styles = StyleSheet.create({
   focusChipDot: { width: 5, height: 5, borderRadius: 3 },
   focusChipText: { fontSize: 11, fontWeight: '600', color: Palette.textSub },
   focusChipTextActive: { color: '#FFFFFF' },
+
+  pendingHomeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderRadius: Radius.md,
+    padding: 10,
+    marginBottom: 6,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+  },
+  pendingHomeIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Palette.red,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingHomeTitle: { fontSize: 12, fontWeight: '700', color: Palette.red },
+  pendingHomeSub: { fontSize: 10, color: '#991B1B', marginTop: 2 },
 });
 
 // Suppress unused — kept for future use
