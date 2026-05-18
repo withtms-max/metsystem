@@ -6,3 +6,4 @@ export * from './customer-export';
 export * from './month-grid';
 export * from './holidays';
 export * from './parse-natural-date';
+export * from './kakao-geocode';

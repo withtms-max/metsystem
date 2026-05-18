@@ -9,6 +9,7 @@ export interface ActivityFilters {
   date?: string;
   customerId?: string;
   type?: ActivityType;
+  limit?: number;
 }
 
 export async function listActivities(
@@ -22,6 +23,7 @@ export async function listActivities(
   if (filters.date) query = query.eq('activity_date', filters.date);
   if (filters.customerId) query = query.eq('customer_id', filters.customerId);
   if (filters.type) query = query.eq('activity_type', filters.type);
+  if (filters.limit) query = query.limit(filters.limit);
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as ActivityLog[];

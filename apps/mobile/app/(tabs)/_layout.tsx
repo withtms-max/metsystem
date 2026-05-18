@@ -55,13 +55,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="route"
         options={{
-          title: '동선',
+          title: '지도',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'location' : 'location-outline'}
-              size={22}
-              color={color}
-            />
+            <Ionicons name={focused ? 'map' : 'map-outline'} size={22} color={color} />
           ),
         }}
       />

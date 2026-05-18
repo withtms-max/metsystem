@@ -79,6 +79,8 @@ export interface CustomerRow {
   company: string | null;
   job_title: string | null;
   address: string | null;
+  home_address: string | null;
+  contract_address: string | null;
   grade: CustomerGrade;
   region_tag: string | null;
   latitude: number | null;
@@ -194,6 +196,8 @@ export interface Database {
           company?: string | null;
           job_title?: string | null;
           address?: string | null;
+          home_address?: string | null;
+          contract_address?: string | null;
           grade?: CustomerGrade;
           region_tag?: string | null;
           latitude?: number | null;
