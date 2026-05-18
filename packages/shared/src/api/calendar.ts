@@ -1,6 +1,7 @@
 import type { MetSupabaseClient } from '../supabase/client';
-import type { ActivityType, GoldenTimeRuleType } from '../types/database';
+import type { ActivityType, GoldenTimeRuleType, TeamEventType } from '../types/database';
 import { getHolidaysInMonth } from '../utils/holidays';
+import { listMonthlyTeamEvents, teamEventTypeLabel } from './team-events';
 
 export type CalendarEventKind =
   | 'ta_call'
@@ -9,7 +10,11 @@ export type CalendarEventKind =
   | 'message'
   | 'contract'
   | 'golden_time'
-  | 'holiday';
+  | 'holiday'
+  | 'team_event';
+
+/** 일정 범위 — UI 토글 필터링용 */
+export type CalendarScope = 'personal' | 'team' | 'holiday';
 
 export interface CalendarEvent {
   /** YYYY-MM-DD */
@@ -17,7 +22,9 @@ export interface CalendarEvent {
   kind: CalendarEventKind;
   /** 짧은 한 줄 (예: '김철수 통화', '이영희 생일') */
   label: string;
-  /** 추가 메타 (rule_type, mood 등) */
+  /** 어느 범주에 속하는지 — 필터링용 */
+  scope: CalendarScope;
+  /** 추가 메타 (rule_type, mood, team_event_type 등) */
   meta?: Record<string, string | number | null>;
 }
 
@@ -87,6 +94,7 @@ export async function listMonthlyEvents(
     events.push({
       date: a.activity_date,
       kind: a.activity_type,
+      scope: 'personal',
       label: `${name} ${typeLabel}`,
       meta: { status: a.status, mood: a.mood, note: a.note },
     });
@@ -104,6 +112,7 @@ export async function listMonthlyEvents(
     events.push({
       date: `${year}-${triggerDay}`,
       kind: 'golden_time',
+      scope: 'personal',
       label: `${name} ${ruleTypeLabel(r.rule_type)}`,
       meta: { rule_type: r.rule_type },
     });
@@ -114,8 +123,26 @@ export async function listMonthlyEvents(
     events.push({
       date: h.date,
       kind: 'holiday',
+      scope: 'holiday',
       label: h.name,
       meta: { holiday_type: h.type },
+    });
+  }
+
+  // 팀 이벤트 (같은 조직 멤버 모두 RLS로 자동 접근)
+  const teamEvents = await listMonthlyTeamEvents(supabase, monthKey);
+  for (const te of teamEvents) {
+    events.push({
+      date: te.event_date,
+      kind: 'team_event',
+      scope: 'team',
+      label: te.title,
+      meta: {
+        event_type: te.event_type,
+        event_time: te.event_time,
+        description: te.description,
+        type_label: teamEventTypeLabel(te.event_type as TeamEventType),
+      },
     });
   }
 

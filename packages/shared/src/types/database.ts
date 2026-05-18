@@ -31,6 +31,15 @@ export type GoldenTimeRuleType =
   | 'custom'
   | 'follow_up';
 
+export type TeamEventType =
+  | 'training'
+  | 'workshop'
+  | 'meeting'
+  | 'external'
+  | 'meal'
+  | 'announcement'
+  | 'other';
+
 // ============================================
 // Row 타입 (DB SELECT 결과)
 // ============================================
@@ -121,6 +130,20 @@ export interface GoldenTimeRuleRow {
   message_template: string | null;
   is_active: boolean;
   created_at: string;
+}
+
+export interface TeamEventRow {
+  id: string;
+  organization_id: string;
+  created_by: string;
+  title: string;
+  event_date: string;
+  event_time: string | null;
+  is_all_day: boolean;
+  event_type: TeamEventType;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ManagerActivityStatsRow {
@@ -219,6 +242,24 @@ export interface Database {
         Update: Partial<GoldenTimeRuleRow>;
         Relationships: [];
       };
+      team_events: {
+        Row: TeamEventRow;
+        Insert: {
+          id?: string;
+          organization_id: string;
+          created_by: string;
+          title: string;
+          event_date: string;
+          event_time?: string | null;
+          is_all_day?: boolean;
+          event_type: TeamEventType;
+          description?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<TeamEventRow>;
+        Relationships: [];
+      };
     };
     Views: {
       manager_activity_stats: {
@@ -243,6 +284,9 @@ export type ActivityLog = ActivityLogRow;
 export type PipelineCard = PipelineCardRow;
 export type GoldenTimeRule = GoldenTimeRuleRow;
 export type ManagerActivityStats = ManagerActivityStatsRow;
+export type TeamEvent = TeamEventRow;
+export type TeamEventInsert = Database['public']['Tables']['team_events']['Insert'];
+export type TeamEventUpdate = Database['public']['Tables']['team_events']['Update'];
 
 export type CustomerInsert = Database['public']['Tables']['customers']['Insert'];
 export type CustomerUpdate = Database['public']['Tables']['customers']['Update'];
