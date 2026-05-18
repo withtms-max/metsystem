@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -21,7 +22,17 @@ const INDUSTRIES = ['보험 GA', '부동산', '자동차', '제약', 'B2B 영업
 
 export default function OnboardingScreen() {
   const { finishOnboarding, signOut } = useAuth();
+  const router = useRouter();
   const [step, setStep] = useState<Step>('role');
+
+  const handleSwitchAccount = async () => {
+    try {
+      await signOut();
+      router.replace('/(auth)/welcome');
+    } catch (e) {
+      console.error('[onboarding signOut] failed', e);
+    }
+  };
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -107,7 +118,7 @@ export default function OnboardingScreen() {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity onPress={signOut} style={styles.signOut}>
+              <TouchableOpacity onPress={handleSwitchAccount} style={styles.signOut}>
                 <Text style={styles.signOutText}>다른 계정으로 다시</Text>
               </TouchableOpacity>
             </View>

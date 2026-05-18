@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -18,18 +22,39 @@ interface Props {
 
 export function ProfileSheet({ visible, onClose }: Props) {
   const { profile, authUser, signOut } = useAuth();
+  const router = useRouter();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const doSignOut = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await signOut();
+      onClose();
+      // 명시적 라우팅 — AuthGate 의 onAuthStateChange 타이밍 의존 안 함
+      router.replace('/(auth)/welcome');
+    } catch (e) {
+      console.error('[signOut] failed', e);
+      setLoggingOut(false);
+      if (Platform.OS === 'web') {
+        window.alert('로그아웃 실패. 새로고침 후 다시 시도해주세요.');
+      } else {
+        Alert.alert('오류', '로그아웃에 실패했어요. 잠시 후 다시 시도해주세요.');
+      }
+    }
+  };
 
   const handleSignOut = () => {
+    // Alert.alert 는 RN Web 에서 destructive 버튼 콜백이 안 불림 → window.confirm 사용
+    if (Platform.OS === 'web') {
+      if (window.confirm('정말 로그아웃 할까요?')) {
+        void doSignOut();
+      }
+      return;
+    }
     Alert.alert('로그아웃', '정말 로그아웃 할까요?', [
       { text: '취소', style: 'cancel' },
-      {
-        text: '로그아웃',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-          onClose();
-        },
-      },
+      { text: '로그아웃', style: 'destructive', onPress: doSignOut },
     ]);
   };
 
@@ -79,9 +104,18 @@ export function ProfileSheet({ visible, onClose }: Props) {
 
           <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleSignOut}>
-            <Ionicons name="log-out-outline" size={18} color={Palette.red} />
-            <Text style={styles.logoutText}>로그아웃</Text>
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={handleSignOut}
+            disabled={loggingOut}>
+            {loggingOut ? (
+              <ActivityIndicator color={Palette.red} size="small" />
+            ) : (
+              <Ionicons name="log-out-outline" size={18} color={Palette.red} />
+            )}
+            <Text style={styles.logoutText}>
+              {loggingOut ? '로그아웃 중...' : '로그아웃'}
+            </Text>
           </TouchableOpacity>
 
           <View style={{ height: 8 }} />
