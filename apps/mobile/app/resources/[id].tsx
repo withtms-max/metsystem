@@ -26,6 +26,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ResourceViewer } from '@/components/resource-viewer';
 import { useAuth } from '@/lib/auth-context';
 import { Palette, Radius } from '@/constants/theme';
 import { formatBytes } from '@/lib/image-compress';
@@ -42,6 +43,8 @@ export default function ResourceDetailScreen() {
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -58,19 +61,18 @@ export default function ResourceDetailScreen() {
 
   const handleOpen = async () => {
     if (!resource) return;
-    if (resource.external_url) {
-      Linking.openURL(resource.external_url).catch(() => {});
+    // 외부 링크는 바로 viewer 로 (YouTube embed 등)
+    if (resource.external_url && !resource.file_path) {
+      setViewerUrl(null);
+      setViewerOpen(true);
       return;
     }
     if (!resource.file_path) return;
     setDownloading(true);
     try {
       const url = await getResourceSignedUrl(supabase, resource.file_path);
-      if (Platform.OS === 'web') {
-        window.open(url, '_blank');
-      } else {
-        await Linking.openURL(url);
-      }
+      setViewerUrl(url);
+      setViewerOpen(true);
     } catch (e) {
       console.warn('[resource] open failed', e);
     } finally {
@@ -272,6 +274,16 @@ export default function ResourceDetailScreen() {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+
+      {/* 인앱 자료 뷰어 — PDF/이미지/YouTube 모달 */}
+      <ResourceViewer
+        visible={viewerOpen}
+        url={viewerUrl}
+        fileName={resource.file_name}
+        mimeType={resource.mime_type}
+        externalUrl={resource.external_url}
+        onClose={() => setViewerOpen(false)}
+      />
     </View>
   );
 }
