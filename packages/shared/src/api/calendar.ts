@@ -52,7 +52,7 @@ export async function listMonthlyEvents(
   // 활동 로그
   const { data: activities, error: actErr } = await supabase
     .from('activity_logs')
-    .select('id, activity_type, activity_date, customer_id, note, status, mood, customers(name, company)')
+    .select('id, activity_type, activity_date, customer_id, note, status, mood, customers(id, name, company)')
     .eq('user_id', userId)
     .gte('activity_date', monthStart)
     .lte('activity_date', monthEnd);
@@ -71,13 +71,14 @@ export async function listMonthlyEvents(
   const events: CalendarEvent[] = [];
 
   // Supabase foreign key 조인은 항상 배열로 옴 — 첫 요소만 사용
-  type RawCustomer = { name: string; company: string | null };
+  type RawCustomer = { id: string; name: string; company: string | null };
   type RawActivity = {
     activity_type: ActivityType;
     activity_date: string;
     status: string | null;
     mood: string | null;
     note: string | null;
+    customer_id: string | null;
     customers: RawCustomer | RawCustomer[] | null;
   };
   type RawRule = {
@@ -100,7 +101,12 @@ export async function listMonthlyEvents(
       kind: a.activity_type,
       scope: 'personal',
       label: `${name} ${typeLabel}`,
-      meta: { status: a.status, mood: a.mood, note: a.note },
+      meta: {
+        status: a.status,
+        mood: a.mood,
+        note: a.note,
+        customer_id: a.customer_id ?? customer?.id ?? null,
+      },
     });
   }
 

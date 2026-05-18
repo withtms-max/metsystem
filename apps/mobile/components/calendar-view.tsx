@@ -11,6 +11,7 @@ import {
   type CalendarScope,
   type TeamEventType,
 } from '@metsystem/shared';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,6 +26,7 @@ import {
 import { Palette, Radius } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { EventAddSheet } from '@/components/event-add-sheet';
 import { QuickEventAdd } from '@/components/quick-event-add';
 import { TeamEventAdd } from '@/components/team-event-add';
 
@@ -65,6 +67,8 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [teamAddOpen, setTeamAddOpen] = useState(false);
+  const [eventAddOpen, setEventAddOpen] = useState(false);
+  const router = useRouter();
   const [fabExpanded, setFabExpanded] = useState(false);
   const [scope, setScope] = useState<ScopeFilter>('all');
 
@@ -319,6 +323,13 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
         defaultDate={selectedDate ?? undefined}
       />
 
+      <EventAddSheet
+        visible={eventAddOpen}
+        onClose={() => setEventAddOpen(false)}
+        onAdded={reloadEvents}
+        defaultDate={selectedDate ?? undefined}
+      />
+
       {/* 날짜 상세 시트 */}
       <Modal
         visible={selectedDate !== null}
@@ -342,32 +353,67 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
                 </Text>
               </View>
             ) : (
-              <ScrollView style={{ maxHeight: 400 }}>
-                {selectedEvents.map((ev, i) => (
-                  <View key={i} style={styles.eventRow}>
-                    <View
-                      style={[
-                        styles.eventIcon,
-                        { backgroundColor: (KIND_COLOR[ev.kind] ?? Palette.gray) + '20' },
-                      ]}>
-                      <Ionicons
-                        name={iconForKind(ev.kind)}
-                        size={16}
-                        color={KIND_COLOR[ev.kind] ?? Palette.gray}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.eventLabel}>{ev.label}</Text>
-                      {ev.meta?.note ? (
-                        <Text style={styles.eventNote} numberOfLines={2}>
-                          {String(ev.meta.note)}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                ))}
+              <ScrollView style={{ maxHeight: 360 }}>
+                {selectedEvents.map((ev, i) => {
+                  const custId = ev.meta?.customer_id ? String(ev.meta.customer_id) : null;
+                  const RowWrap = custId ? TouchableOpacity : View;
+                  return (
+                    <RowWrap
+                      key={i}
+                      style={styles.eventRow}
+                      activeOpacity={0.7}
+                      onPress={
+                        custId
+                          ? () => {
+                              setSelectedDate(null);
+                              router.push({
+                                pathname: '/customer/[id]',
+                                params: { id: custId },
+                              });
+                            }
+                          : undefined
+                      }>
+                      <View
+                        style={[
+                          styles.eventIcon,
+                          { backgroundColor: (KIND_COLOR[ev.kind] ?? Palette.gray) + '20' },
+                        ]}>
+                        <Ionicons
+                          name={iconForKind(ev.kind)}
+                          size={16}
+                          color={KIND_COLOR[ev.kind] ?? Palette.gray}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.eventLabel}>{ev.label}</Text>
+                        {ev.meta?.note ? (
+                          <Text style={styles.eventNote} numberOfLines={2}>
+                            {String(ev.meta.note)}
+                          </Text>
+                        ) : null}
+                      </View>
+                      {custId && (
+                        <Ionicons
+                          name="chevron-forward"
+                          size={16}
+                          color={Palette.textMuted}
+                        />
+                      )}
+                    </RowWrap>
+                  );
+                })}
               </ScrollView>
             )}
+
+            {/* 이날 일정 추가 — 핵심 액션 */}
+            <TouchableOpacity
+              style={styles.addEventBtn}
+              onPress={() => setEventAddOpen(true)}
+              activeOpacity={0.85}>
+              <Ionicons name="add-circle" size={18} color="#FFFFFF" />
+              <Text style={styles.addEventBtnText}>이날 일정 추가</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.closeBtn}
               onPress={() => setSelectedDate(null)}
@@ -622,8 +668,20 @@ const styles = StyleSheet.create({
   eventLabel: { fontSize: 14, fontWeight: '600', color: Palette.textMain },
   eventNote: { fontSize: 12, color: Palette.textSub, marginTop: 2 },
 
+  addEventBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    backgroundColor: Palette.primary,
+    paddingVertical: 13,
+    borderRadius: Radius.md,
+  },
+  addEventBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+
   closeBtn: {
-    marginTop: 16,
+    marginTop: 8,
     backgroundColor: Palette.grayBg,
     paddingVertical: 12,
     borderRadius: Radius.md,
