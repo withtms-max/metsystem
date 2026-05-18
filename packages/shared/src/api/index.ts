@@ -9,3 +9,4 @@ export * from './call';
 export * from './resources';
 export * from './insights';
 export * from './campaign-progress';
+export * from './memberships';

@@ -1,13 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import { getIndustry } from '@metsystem/shared';
+import {
+  getIndustry,
+  leaveTeam,
+  listMyJoinRequests,
+  listMyTeams,
+  switchActiveTeam,
+  type JoinRequest,
+  type MyTeam,
+} from '@metsystem/shared';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   getNotificationPermission,
   permissionLabel,
   requestNotificationPermission,
   type NotificationPermission,
 } from '@/lib/web-notifications';
+import { TeamJoinSheet } from '@/components/team-join-sheet';
+import { supabase } from '@/lib/supabase';
 import {
   ActivityIndicator,
   Alert,
@@ -28,15 +38,67 @@ interface Props {
 }
 
 export function ProfileSheet({ visible, onClose }: Props) {
-  const { profile, authUser, organization, signOut } = useAuth();
+  const { profile, authUser, organization, signOut, refreshProfile } = useAuth();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const industryDef = getIndustry(organization?.industry);
   const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+  const [myTeams, setMyTeams] = useState<MyTeam[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<JoinRequest[]>([]);
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [teamsLoading, setTeamsLoading] = useState(false);
+
+  const reloadTeams = useCallback(async () => {
+    setTeamsLoading(true);
+    try {
+      const [teams, reqs] = await Promise.all([
+        listMyTeams(supabase),
+        listMyJoinRequests(supabase),
+      ]);
+      setMyTeams(teams);
+      setPendingRequests(reqs.filter((r) => r.status === 'pending'));
+    } catch (e) {
+      console.warn('[profile teams] load failed', e);
+    } finally {
+      setTeamsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (visible) setNotifPerm(getNotificationPermission());
-  }, [visible]);
+    if (visible) {
+      setNotifPerm(getNotificationPermission());
+      void reloadTeams();
+    }
+  }, [visible, reloadTeams]);
+
+  const handleSwitch = async (orgId: string) => {
+    if (orgId === organization?.id) return;
+    try {
+      await switchActiveTeam(supabase, orgId);
+      await refreshProfile();
+      onClose();
+    } catch (e) {
+      console.warn('[switch team] failed', e);
+    }
+  };
+
+  const handleLeave = async (orgId: string, orgName: string) => {
+    const ok =
+      typeof window !== 'undefined' && window.confirm
+        ? window.confirm(`"${orgName}" 팀에서 탈퇴할까요? 이 팀의 데이터는 더 이상 보이지 않게 돼요.`)
+        : true;
+    if (!ok) return;
+    try {
+      await leaveTeam(supabase, orgId);
+      await refreshProfile();
+      await reloadTeams();
+    } catch (e) {
+      const err = e as { message?: string };
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(err.message ?? '탈퇴 실패');
+      }
+    }
+  };
 
   const handleEnableNotif = async () => {
     const result = await requestNotificationPermission();
@@ -114,7 +176,64 @@ export function ProfileSheet({ visible, onClose }: Props) {
 
           <View style={styles.divider} />
 
-          {/* 조직 + 업종 미리보기 */}
+          {/* 내가 속한 팀 목록 */}
+          <View style={styles.teamsBox}>
+            <View style={styles.teamsHead}>
+              <Text style={styles.teamsLabel}>내가 속한 팀</Text>
+              <TouchableOpacity
+                style={styles.teamAddBtn}
+                onPress={() => setJoinOpen(true)}>
+                <Ionicons name="add" size={14} color={Palette.primary} />
+                <Text style={styles.teamAddBtnText}>팀 추가</Text>
+              </TouchableOpacity>
+            </View>
+            {teamsLoading && myTeams.length === 0 ? (
+              <ActivityIndicator size="small" color={Palette.primary} />
+            ) : myTeams.length === 0 ? (
+              <Text style={styles.teamsEmpty}>아직 속한 팀이 없어요</Text>
+            ) : (
+              myTeams.map((t) => {
+                const isActive = t.organization.id === organization?.id;
+                const def = getIndustry(t.organization.industry);
+                return (
+                  <View key={t.organization.id} style={styles.teamRow}>
+                    <TouchableOpacity
+                      style={{ flex: 1 }}
+                      onPress={() => handleSwitch(t.organization.id)}
+                      activeOpacity={0.8}>
+                      <View style={styles.teamRowHead}>
+                        <Text style={styles.teamName}>{t.organization.name}</Text>
+                        {isActive && (
+                          <View style={styles.activePill}>
+                            <Text style={styles.activePillText}>활성</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.teamIndustry}>
+                        {def.emoji} {def.label} · {membershipRoleLabel(t.membership.role)}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleLeave(t.organization.id, t.organization.name)}
+                      hitSlop={6}>
+                      <Ionicons name="exit-outline" size={16} color={Palette.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
+
+            {pendingRequests.length > 0 && (
+              <View style={styles.pendingBox}>
+                <Ionicons name="time-outline" size={12} color={Palette.orange} />
+                <Text style={styles.pendingText}>
+                  가입 신청 {pendingRequests.length}건 · 관리자 승인 대기 중
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* 활성 조직 업종 표시 */}
           {organization && (
             <View style={styles.orgBox}>
               <View style={{ flex: 1 }}>
@@ -166,8 +285,20 @@ export function ProfileSheet({ visible, onClose }: Props) {
           <View style={{ height: 8 }} />
         </Pressable>
       </Pressable>
+
+      <TeamJoinSheet
+        visible={joinOpen}
+        onClose={() => setJoinOpen(false)}
+        onRequested={reloadTeams}
+      />
     </Modal>
   );
+}
+
+function membershipRoleLabel(role: string): string {
+  if (role === 'owner') return '오너';
+  if (role === 'manager') return '센터장';
+  return '영업맨';
 }
 
 function MenuItem({
@@ -241,6 +372,58 @@ const styles = StyleSheet.create({
   },
   orgName: { fontSize: 14, fontWeight: '700', color: Palette.textMain },
   orgIndustry: { fontSize: 11, color: Palette.textSub, marginTop: 3 },
+
+  teamsBox: { marginBottom: 10 },
+  teamsHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  teamsLabel: { fontSize: 11, fontWeight: '700', color: Palette.textSub },
+  teamAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  teamAddBtnText: { fontSize: 11, fontWeight: '700', color: Palette.primary },
+  teamsEmpty: {
+    fontSize: 11,
+    color: Palette.textMuted,
+    fontStyle: 'italic',
+    paddingVertical: 6,
+  },
+
+  teamRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: Palette.card,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    marginBottom: 4,
+  },
+  teamRowHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  teamName: { fontSize: 13, fontWeight: '700', color: Palette.textMain },
+  activePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    backgroundColor: Palette.primary,
+  },
+  activePillText: { fontSize: 9, fontWeight: '700', color: '#FFFFFF' },
+  teamIndustry: { fontSize: 10, color: Palette.textMuted, marginTop: 2 },
+
+  pendingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: Radius.md,
+    marginTop: 6,
+  },
+  pendingText: { fontSize: 11, color: Palette.orange, fontWeight: '600', flex: 1 },
 
   divider: { height: 1, backgroundColor: Palette.border, marginVertical: 4 },
 

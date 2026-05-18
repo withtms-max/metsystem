@@ -172,6 +172,31 @@ export interface GoldenTimeRuleRow {
   created_at: string;
 }
 
+export interface OrganizationMembershipRow {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  role: UserRole;
+  status: 'active' | 'left' | 'removed';
+  joined_at: string;
+  left_at: string | null;
+  invited_by: string | null;
+  exit_reason: string | null;
+}
+
+export interface JoinRequestRow {
+  id: string;
+  user_id: string;
+  organization_id: string;
+  invite_code: string;
+  message: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  requested_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_reason: string | null;
+}
+
 export interface TeamEventRow {
   id: string;
   organization_id: string;
@@ -353,6 +378,9 @@ export type ManagerActivityStats = ManagerActivityStatsRow;
 export type TeamEvent = TeamEventRow;
 export type TeamEventInsert = Database['public']['Tables']['team_events']['Insert'];
 export type TeamEventUpdate = Database['public']['Tables']['team_events']['Update'];
+
+export type OrganizationMembership = OrganizationMembershipRow;
+export type JoinRequest = JoinRequestRow;
 
 export type CustomerInsert = Database['public']['Tables']['customers']['Insert'];
 export type CustomerUpdate = Database['public']['Tables']['customers']['Update'];

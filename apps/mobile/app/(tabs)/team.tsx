@@ -6,6 +6,7 @@ import {
   getIndustry,
   listActiveCampaigns,
   listAnnouncements,
+  listPendingJoinRequests,
   type CampaignProgress,
   type TeamEvent,
 } from '@metsystem/shared';
@@ -22,6 +23,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CampaignAddSheet } from '@/components/campaign-add-sheet';
 import { TeamEventAdd } from '@/components/team-event-add';
+import { TeamMembersSheet } from '@/components/team-members-sheet';
+import { TeamRequestsSheet } from '@/components/team-requests-sheet';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import { Palette, Radius, Shadow } from '@/constants/theme';
@@ -39,19 +42,23 @@ export default function TeamHubScreen() {
 
   const [campaignAddOpen, setCampaignAddOpen] = useState(false);
   const [noticeAddOpen, setNoticeAddOpen] = useState(false);
+  const [requestsOpen, setRequestsOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const reload = useCallback(async () => {
     if (!authUser) return;
     setLoading(true);
     try {
-      const [cs, ns] = await Promise.all([
+      const [cs, ns, pending] = await Promise.all([
         listActiveCampaigns(supabase),
         listAnnouncements(supabase, 3),
+        isManager ? listPendingJoinRequests(supabase) : Promise.resolve([]),
       ]);
       setCampaigns(cs);
       setAnnouncements(ns);
+      setPendingCount(pending.length);
 
-      // 각 시책 진척률 병렬 로드
       const progressMap: Record<string, CampaignProgress> = {};
       await Promise.all(
         cs.map(async (c) => {
@@ -65,7 +72,7 @@ export default function TeamHubScreen() {
     } finally {
       setLoading(false);
     }
-  }, [authUser]);
+  }, [authUser, isManager]);
 
   useFocusEffect(
     useCallback(() => {
@@ -106,6 +113,24 @@ export default function TeamHubScreen() {
           </View>
         ) : (
           <>
+            {/* 가입 신청 배너 — 관리자만 */}
+            {isManager && pendingCount > 0 && (
+              <TouchableOpacity
+                style={styles.pendingBanner}
+                onPress={() => setRequestsOpen(true)}>
+                <View style={styles.pendingIcon}>
+                  <Ionicons name="person-add" size={14} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pendingTitle}>
+                    가입 신청 {pendingCount}건 대기 중
+                  </Text>
+                  <Text style={styles.pendingSub}>탭해서 승인·거절</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Palette.primary} />
+              </TouchableOpacity>
+            )}
+
             {/* 진행 중 시책 */}
             <View style={styles.section}>
               <View style={styles.sectionHead}>
@@ -182,9 +207,7 @@ export default function TeamHubScreen() {
                 icon="people"
                 label="팀원"
                 color={Palette.orange}
-                onPress={() => {
-                  // V2 자리표시자
-                }}
+                onPress={() => setMembersOpen(true)}
               />
             </View>
 
@@ -214,6 +237,16 @@ export default function TeamHubScreen() {
           void reload();
         }}
       />
+
+      {/* 가입 신청 관리 (관리자) */}
+      <TeamRequestsSheet
+        visible={requestsOpen}
+        onClose={() => setRequestsOpen(false)}
+        onChanged={reload}
+      />
+
+      {/* 팀원 관리 */}
+      <TeamMembersSheet visible={membersOpen} onClose={() => setMembersOpen(false)} />
     </View>
   );
 }
@@ -452,4 +485,24 @@ const styles = StyleSheet.create({
     marginTop: 18,
     fontStyle: 'italic',
   },
+
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: Palette.primarySoft,
+    padding: 12,
+    borderRadius: Radius.md,
+    marginBottom: 10,
+  },
+  pendingIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Palette.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingTitle: { fontSize: 13, fontWeight: '700', color: Palette.primaryDeep },
+  pendingSub: { fontSize: 11, color: Palette.primary, marginTop: 2 },
 });
