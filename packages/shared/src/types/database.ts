@@ -40,6 +40,14 @@ export type TeamEventType =
   | 'announcement'
   | 'other';
 
+export type ResourceCategory =
+  | 'training'    // 교육 자료
+  | 'sales_doc'   // 영업 자료 (제안서 등)
+  | 'contract'    // 약관·계약서
+  | 'notice'      // 공지
+  | 'script'      // 스크립트
+  | 'general';    // 일반
+
 // ============================================
 // Row 타입 (DB SELECT 결과)
 // ============================================

@@ -1,7 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { getIndustry } from '@metsystem/shared';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import {
+  getNotificationPermission,
+  permissionLabel,
+  requestNotificationPermission,
+  type NotificationPermission,
+} from '@/lib/web-notifications';
 import {
   ActivityIndicator,
   Alert,
@@ -26,6 +32,16 @@ export function ProfileSheet({ visible, onClose }: Props) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const industryDef = getIndustry(organization?.industry);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    if (visible) setNotifPerm(getNotificationPermission());
+  }, [visible]);
+
+  const handleEnableNotif = async () => {
+    const result = await requestNotificationPermission();
+    setNotifPerm(result);
+  };
 
   const doSignOut = async () => {
     if (loggingOut) return;
@@ -113,7 +129,22 @@ export function ProfileSheet({ visible, onClose }: Props) {
           {/* 메뉴 */}
           <MenuItem icon="person-outline" label="내 정보 수정" onPress={onClose} />
           <MenuItem icon="business-outline" label="조직 정보" onPress={onClose} />
-          <MenuItem icon="notifications-outline" label="알림 설정" onPress={onClose} />
+
+          {/* 알림 권한 */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={notifPerm === 'granted' ? undefined : handleEnableNotif}
+            disabled={notifPerm === 'granted' || notifPerm === 'unavailable'}>
+            <Ionicons name="notifications-outline" size={18} color={Palette.textMain} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuLabel}>브라우저 알림</Text>
+              <Text style={styles.menuSub}>{permissionLabel(notifPerm)}</Text>
+            </View>
+            {notifPerm !== 'granted' && notifPerm !== 'unavailable' && (
+              <Text style={styles.menuAction}>허용</Text>
+            )}
+          </TouchableOpacity>
+
           <MenuItem icon="help-circle-outline" label="도움말" onPress={onClose} />
 
           <View style={styles.divider} />
@@ -220,6 +251,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   menuLabel: { flex: 1, fontSize: 14, color: Palette.textMain, fontWeight: '500' },
+  menuSub: { fontSize: 10, color: Palette.textMuted, marginTop: 2 },
+  menuAction: { fontSize: 11, color: Palette.primary, fontWeight: '700' },
 
   logoutBtn: {
     flexDirection: 'row',

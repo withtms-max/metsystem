@@ -6,3 +6,5 @@ export * from './calendar';
 export * from './golden-time';
 export * from './team-events';
 export * from './call';
+export * from './resources';
+export * from './insights';

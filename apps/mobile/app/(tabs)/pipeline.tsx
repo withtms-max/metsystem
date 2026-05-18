@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePipeline } from '@/hooks/use-pipeline';
 import { GradeColor, Palette, Radius, Shadow, StageStyle } from '@/constants/theme';
 import { CalendarView } from '@/components/calendar-view';
+import { InsightsView } from '@/components/insights-view';
 
 const STAGES: { key: PipelineStage }[] = [
   { key: 'ta_target' },
@@ -38,7 +39,7 @@ const NEXT_STAGE: Record<PipelineStage, PipelineStage | null> = {
   on_hold: 'ta_target',
 };
 
-type ViewMode = 'board' | 'calendar';
+type ViewMode = 'board' | 'calendar' | 'insights';
 
 export default function PipelineScreen() {
   const router = useRouter();
@@ -86,6 +87,23 @@ export default function PipelineScreen() {
                     viewMode === 'calendar' && styles.viewBtnTextActive,
                   ]}>
                   캘린더
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.viewBtn, viewMode === 'insights' && styles.viewBtnActive]}
+                onPress={() => setViewMode('insights')}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="analytics-outline"
+                  size={14}
+                  color={viewMode === 'insights' ? Palette.textMain : Palette.textSub}
+                />
+                <Text
+                  style={[
+                    styles.viewBtnText,
+                    viewMode === 'insights' && styles.viewBtnTextActive,
+                  ]}>
+                  분석
                 </Text>
               </TouchableOpacity>
             </View>
@@ -149,6 +167,8 @@ export default function PipelineScreen() {
         <ScrollView>
           <CalendarView monthKey={monthKey} onMonthChange={setMonthKey} />
         </ScrollView>
+      ) : viewMode === 'insights' ? (
+        <InsightsView monthKey={monthKey} />
       ) : error ? (
         <View style={styles.empty}>
           <View style={styles.emptyIconBox}>

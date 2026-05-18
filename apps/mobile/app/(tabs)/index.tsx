@@ -13,6 +13,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { showNotification } from '@/lib/web-notifications';
 import { useDailyCounts } from '@/hooks/use-daily-counts';
 import { usePipeline } from '@/hooks/use-pipeline';
 import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
@@ -52,9 +53,30 @@ export default function HomeScreen() {
         listUpcomingActions(supabase, 7),
       ]);
       setStaleCustomers(stale);
-      setUpcomingActions(
-        gradeFocus ? actions.filter((c) => c.grade === gradeFocus) : actions,
-      );
+      const filteredActions = gradeFocus
+        ? actions.filter((c) => c.grade === gradeFocus)
+        : actions;
+      setUpcomingActions(filteredActions);
+
+      // 브라우저 알림 트리거 — 오늘 액션 + 90일 무연락 (각 24시간 1회)
+      const today = new Date().toISOString().slice(0, 10);
+      const todayActions = filteredActions.filter((c) => c.next_action_date === today);
+      if (todayActions.length > 0) {
+        const first = todayActions[0];
+        showNotification(`오늘 ${todayActions.length}건 액션 예정`, {
+          body: `${first.name} · ${first.next_action_text ?? ''}${
+            todayActions.length > 1 ? ` 외 ${todayActions.length - 1}건` : ''
+          }`,
+          dedupKey: `actions-today-${today}`,
+        });
+      }
+      if (stale.length > 0) {
+        const first = stale[0];
+        showNotification(`A·B급 ${stale.length}명 90일+ 무연락`, {
+          body: `${first.grade}급 ${first.name} 부터 챙겨보세요`,
+          dedupKey: `stale-${today}`,
+        });
+      }
     } catch (e) {
       console.warn('[home] intel fetch failed', e);
     }
@@ -295,9 +317,10 @@ export default function HomeScreen() {
             onPress={() => router.push('/(tabs)/customers')}
           />
           <QuickItem
-            icon="document-text-outline"
-            label="기록"
-            onPress={() => router.push('/(tabs)/pipeline')}
+            icon="folder-outline"
+            label="자료실"
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onPress={() => router.push('/resources' as any)}
           />
           <QuickItem icon="notifications-outline" label="알림" onPress={() => {}} />
         </View>
