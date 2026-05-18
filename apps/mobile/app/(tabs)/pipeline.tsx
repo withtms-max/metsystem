@@ -3,6 +3,7 @@ import {
   currentMonthKey,
   formatMonthKeyKorean,
   shiftMonthKey,
+  type PipelineCardWithCustomer,
   type PipelineStage,
 } from '@metsystem/shared';
 import { useRouter } from 'expo-router';
@@ -193,101 +194,144 @@ export default function PipelineScreen() {
         </View>
       ) : (
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.kanbanContent}>
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.vListContent}>
           {STAGES.map((stage) => {
             const style = StageStyle[stage.key];
             const stageCards = byStage(stage.key);
             const next = NEXT_STAGE[stage.key];
             return (
-              <View key={stage.key} style={styles.column}>
-                <View style={styles.columnHeader}>
-                  <View style={styles.columnTitleRow}>
-                    <View style={[styles.columnDot, { backgroundColor: style.accent }]} />
-                    <Text style={styles.columnTitle}>{style.label}</Text>
-                  </View>
-                  <Text style={styles.columnCount}>{stageCards.length}</Text>
-                </View>
-
-                <ScrollView style={styles.columnBody} showsVerticalScrollIndicator={false}>
-                  {stageCards.map((card) => {
-                    const c = card.customer;
-                    if (!c) return null;
-                    const grade = GradeColor[c.grade];
-                    return (
-                      <TouchableOpacity
-                        key={card.id}
-                        style={styles.kanbanCard}
-                        activeOpacity={0.85}
-                        onPress={() =>
-                          router.push({
-                            pathname: '/customer/[id]',
-                            params: { id: c.id },
-                          })
-                        }>
-                        <View style={styles.kanbanCardHead}>
-                          <Text style={styles.kanbanCustomer} numberOfLines={1}>
-                            {c.company ?? c.name}
-                          </Text>
-                          <View style={[styles.gradePill, { backgroundColor: grade.bg }]}>
-                            <Text style={[styles.gradePillText, { color: grade.fg }]}>
-                              {c.grade}
-                            </Text>
-                          </View>
-                        </View>
-                        {c.company && (
-                          <Text style={styles.kanbanContact} numberOfLines={1}>
-                            {c.name}
-                            {c.job_title ? ` · ${c.job_title}` : ''}
-                          </Text>
-                        )}
-                        {(card.note || c.memo) && (
-                          <Text style={styles.kanbanMemo} numberOfLines={2}>
-                            {card.note ?? c.memo}
-                          </Text>
-                        )}
-                        {c.region_tag && (
-                          <View style={styles.kanbanFooter}>
-                            <Ionicons
-                              name="location-outline"
-                              size={11}
-                              color={Palette.textMuted}
-                            />
-                            <Text style={styles.kanbanRegion}>{c.region_tag}</Text>
-                          </View>
-                        )}
-                        {next && (
-                          <TouchableOpacity
-                            style={styles.moveBtn}
-                            activeOpacity={0.7}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              void move(card.id, next);
-                            }}>
-                            <Text style={styles.moveBtnText}>
-                              {StageStyle[next].label}로 이동
-                            </Text>
-                            <Ionicons
-                              name="arrow-forward"
-                              size={11}
-                              color={Palette.primary}
-                            />
-                          </TouchableOpacity>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                  {stageCards.length === 0 && (
-                    <View style={styles.emptyColumn}>
-                      <Text style={styles.emptyColumnText}>비어있음</Text>
-                    </View>
-                  )}
-                </ScrollView>
-              </View>
+              <PipelineSection
+                key={stage.key}
+                stageKey={stage.key}
+                label={style.label}
+                accent={style.accent}
+                bg={style.bg}
+                cards={stageCards}
+                next={next}
+                onPressCard={(id) =>
+                  router.push({ pathname: '/customer/[id]', params: { id } })
+                }
+                onMove={(cardId) => {
+                  if (next) void move(cardId, next);
+                }}
+              />
             );
           })}
         </ScrollView>
+      )}
+    </View>
+  );
+}
+
+/**
+ * 세로형 영업판 섹션 — 단계별 행 형태로 카드 나열.
+ * 카드는 가로형 한 줄 (이름·등급·메모·다음단계 이동).
+ */
+function PipelineSection({
+  stageKey,
+  label,
+  accent,
+  bg,
+  cards,
+  next,
+  onPressCard,
+  onMove,
+}: {
+  stageKey: PipelineStage;
+  label: string;
+  accent: string;
+  bg: string;
+  cards: PipelineCardWithCustomer[];
+  next: PipelineStage | null;
+  onPressCard: (customerId: string) => void;
+  onMove: (cardId: string) => void;
+}) {
+  const [collapsed, setCollapsed] = useState(cards.length === 0);
+  const isEmpty = cards.length === 0;
+  void stageKey;
+
+  return (
+    <View style={styles.section}>
+      <TouchableOpacity
+        style={styles.sectionHead}
+        onPress={() => setCollapsed((v) => !v)}
+        activeOpacity={0.75}>
+        <View style={[styles.sectionDot, { backgroundColor: accent }]} />
+        <Text style={styles.sectionTitle}>{label}</Text>
+        <View style={[styles.sectionCount, { backgroundColor: bg }]}>
+          <Text style={[styles.sectionCountText, { color: accent }]}>{cards.length}</Text>
+        </View>
+        {!isEmpty && (
+          <Ionicons
+            name={collapsed ? 'chevron-down' : 'chevron-up'}
+            size={16}
+            color={Palette.textMuted}
+          />
+        )}
+      </TouchableOpacity>
+
+      {!collapsed && !isEmpty && (
+        <View style={styles.sectionBody}>
+          {cards.map((card) => {
+            const c = card.customer;
+            if (!c) return null;
+            const grade = GradeColor[c.grade];
+            return (
+              <TouchableOpacity
+                key={card.id}
+                style={styles.sectionCard}
+                activeOpacity={0.85}
+                onPress={() => onPressCard(c.id)}>
+                <View style={[styles.cardAvatar, { backgroundColor: grade.bg }]}>
+                  <Text style={[styles.cardAvatarText, { color: grade.fg }]}>
+                    {(c.company ?? c.name).slice(0, 1)}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.cardHeadRow}>
+                    <Text style={styles.cardName} numberOfLines={1}>
+                      {c.company ?? c.name}
+                    </Text>
+                    <View style={[styles.gradePill, { backgroundColor: grade.bg }]}>
+                      <Text style={[styles.gradePillText, { color: grade.fg }]}>
+                        {c.grade}
+                      </Text>
+                    </View>
+                  </View>
+                  {c.company && (
+                    <Text style={styles.cardSub} numberOfLines={1}>
+                      {c.name}
+                      {c.job_title ? ` · ${c.job_title}` : ''}
+                      {c.region_tag ? ` · ${c.region_tag}` : ''}
+                    </Text>
+                  )}
+                  {(card.note || c.memo) && (
+                    <Text style={styles.cardMemo} numberOfLines={1}>
+                      {card.note ?? c.memo}
+                    </Text>
+                  )}
+                </View>
+                {next && (
+                  <TouchableOpacity
+                    style={styles.cardMoveBtn}
+                    activeOpacity={0.7}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      onMove(card.id);
+                    }}
+                    hitSlop={6}>
+                    <Ionicons name="arrow-forward" size={14} color={Palette.primary} />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
+
+      {collapsed && !isEmpty && (
+        <Text style={styles.collapsedHint}>{cards.length}건 — 탭해서 펼치기</Text>
       )}
     </View>
   );
@@ -408,7 +452,72 @@ const styles = StyleSheet.create({
   swipeBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
   swipeBtnSub: { color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 2 },
 
-  // Kanban
+  // Vertical sections (new)
+  vListContent: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 32 },
+  section: { marginBottom: 8 },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Palette.card,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  sectionDot: { width: 8, height: 8, borderRadius: 4 },
+  sectionTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: Palette.textMain },
+  sectionCount: {
+    minWidth: 24,
+    height: 22,
+    paddingHorizontal: 8,
+    borderRadius: 11,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionCountText: { fontSize: 12, fontWeight: '800' },
+  sectionBody: { marginTop: 6, gap: 6 },
+  collapsedHint: {
+    fontSize: 11,
+    color: Palette.textMuted,
+    paddingLeft: 28,
+    paddingTop: 4,
+    fontStyle: 'italic',
+  },
+
+  sectionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: Palette.card,
+    borderRadius: Radius.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  cardAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardAvatarText: { fontSize: 15, fontWeight: '700' },
+  cardHeadRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  cardName: { flex: 1, fontSize: 14, fontWeight: '700', color: Palette.textMain },
+  cardSub: { fontSize: 11, color: Palette.textSub, marginTop: 2 },
+  cardMemo: { fontSize: 11, color: Palette.textMuted, marginTop: 2 },
+  cardMoveBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Palette.primarySoft,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Kanban (legacy — kept for reference, no longer used)
   kanbanContent: { paddingHorizontal: 12, paddingTop: 16, paddingBottom: 24 },
   column: { width: 260, marginHorizontal: 4 },
   columnHeader: {
