@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { Customer, CustomerGrade } from '@metsystem/shared';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -27,8 +27,15 @@ import { GradeColor, Palette, Radius } from '@/constants/theme';
  */
 export default function MapScreen() {
   const router = useRouter();
-  const { customers, isLoading } = useCustomers();
+  const { customers, isLoading, reload } = useCustomers();
   const [gradeFilter, setGradeFilter] = useState<CustomerGrade | null>(null);
+
+  // 탭 진입 시마다 최신 고객 목록 다시 가져오기 (새로고침 불필요)
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
   const [regionFilter, setRegionFilter] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 

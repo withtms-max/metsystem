@@ -6,8 +6,8 @@ import {
   type Customer,
   type CustomerGrade,
 } from '@metsystem/shared';
-import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -51,7 +51,14 @@ export default function CustomersScreen() {
     [selectedGrade, selectedRegion, search],
   );
 
-  const { customers, isLoading, error } = useCustomers(filters);
+  const { customers, isLoading, error, reload } = useCustomers(filters);
+
+  // 탭 진입 시마다 자동 새로고침
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
 
   const regionOptions = useMemo(() => {
     const set = new Set<string>();
