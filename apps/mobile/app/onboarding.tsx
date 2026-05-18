@@ -95,7 +95,7 @@ export default function OnboardingScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.roleTitle}>저, 영업합니다</Text>
                     <Text style={styles.roleSub}>
-                      고객·생명수·동선 — 다 폰에서 처리할게요
+                      고객·영업판·동선 — 다 폰에서 처리할게요
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={Palette.textMuted} />

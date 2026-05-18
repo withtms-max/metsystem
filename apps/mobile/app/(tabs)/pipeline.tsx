@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePipeline } from '@/hooks/use-pipeline';
 import { GradeColor, Palette, Radius, Shadow, StageStyle } from '@/constants/theme';
+import { CalendarView } from '@/components/calendar-view';
 
 const STAGES: { key: PipelineStage }[] = [
   { key: 'ta_target' },
@@ -37,9 +38,12 @@ const NEXT_STAGE: Record<PipelineStage, PipelineStage | null> = {
   on_hold: 'ta_target',
 };
 
+type ViewMode = 'board' | 'calendar';
+
 export default function PipelineScreen() {
   const router = useRouter();
   const [monthKey, setMonthKey] = useState(currentMonthKey());
+  const [viewMode, setViewMode] = useState<ViewMode>('board');
   const { byStage, cards, isLoading, error, move } = usePipeline(monthKey);
 
   const taTargetCount = byStage('ta_target').length;
@@ -51,58 +55,101 @@ export default function PipelineScreen() {
       <SafeAreaView edges={['top']}>
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>이달의 생명수</Text>
-          </View>
-
-          <View style={styles.monthRow}>
-            <TouchableOpacity
-              style={styles.monthBtn}
-              onPress={() => setMonthKey(shiftMonthKey(monthKey, -1))}
-              hitSlop={8}>
-              <Ionicons name="chevron-back" size={16} color={Palette.textSub} />
-            </TouchableOpacity>
-            <Text style={styles.monthLabel}>{formatMonthKeyKorean(monthKey)}</Text>
-            <TouchableOpacity
-              style={styles.monthBtn}
-              onPress={() => setMonthKey(shiftMonthKey(monthKey, 1))}
-              hitSlop={8}>
-              <Ionicons name="chevron-forward" size={16} color={Palette.textSub} />
-            </TouchableOpacity>
-          </View>
-
-          {/* KPI 한 줄 */}
-          <View style={styles.kpiRow}>
-            <KpiCell label="TA 대상" value={taTargetCount} />
-            <View style={styles.kpiSep} />
-            <KpiCell label="미팅 예정" value={meetingScheduledCount} />
-            <View style={styles.kpiSep} />
-            <KpiCell label="계약" value={contractCount} accent={Palette.green} />
-            <View style={styles.kpiSep} />
-            <KpiCell label="전체" value={cards.length} />
-          </View>
-
-          {/* 스와이프 TA 진입 */}
-          {taTargetCount > 0 && (
-            <TouchableOpacity
-              style={styles.swipeBtn}
-              onPress={() => router.push('/swipe-ta')}
-              activeOpacity={0.9}>
-              <View style={styles.swipeBtnIcon}>
-                <Ionicons name="call" size={18} color="#FFFFFF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.swipeBtnText}>스와이프 TA 시작하기</Text>
-                <Text style={styles.swipeBtnSub}>
-                  TA 대상 {taTargetCount}명 · 60초 타이머 + 1분 스크립트
+            <Text style={styles.title}>이달의 영업판</Text>
+            <View style={styles.viewToggle}>
+              <TouchableOpacity
+                style={[styles.viewBtn, viewMode === 'board' && styles.viewBtnActive]}
+                onPress={() => setViewMode('board')}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="grid-outline"
+                  size={14}
+                  color={viewMode === 'board' ? Palette.textMain : Palette.textSub}
+                />
+                <Text
+                  style={[styles.viewBtnText, viewMode === 'board' && styles.viewBtnTextActive]}>
+                  보드
                 </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.viewBtn, viewMode === 'calendar' && styles.viewBtnActive]}
+                onPress={() => setViewMode('calendar')}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="calendar-outline"
+                  size={14}
+                  color={viewMode === 'calendar' ? Palette.textMain : Palette.textSub}
+                />
+                <Text
+                  style={[
+                    styles.viewBtnText,
+                    viewMode === 'calendar' && styles.viewBtnTextActive,
+                  ]}>
+                  캘린더
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {viewMode === 'board' && (
+            <View style={styles.monthRow}>
+              <TouchableOpacity
+                style={styles.monthBtn}
+                onPress={() => setMonthKey(shiftMonthKey(monthKey, -1))}
+                hitSlop={8}>
+                <Ionicons name="chevron-back" size={16} color={Palette.textSub} />
+              </TouchableOpacity>
+              <Text style={styles.monthLabel}>{formatMonthKeyKorean(monthKey)}</Text>
+              <TouchableOpacity
+                style={styles.monthBtn}
+                onPress={() => setMonthKey(shiftMonthKey(monthKey, 1))}
+                hitSlop={8}>
+                <Ionicons name="chevron-forward" size={16} color={Palette.textSub} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* KPI 한 줄 — 보드 모드에서만 */}
+          {viewMode === 'board' && (
+            <>
+              <View style={styles.kpiRow}>
+                <KpiCell label="콜 예정" value={taTargetCount} />
+                <View style={styles.kpiSep} />
+                <KpiCell label="미팅 예정" value={meetingScheduledCount} />
+                <View style={styles.kpiSep} />
+                <KpiCell label="계약" value={contractCount} accent={Palette.green} />
+                <View style={styles.kpiSep} />
+                <KpiCell label="전체" value={cards.length} />
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-            </TouchableOpacity>
+
+              {/* 빠른 콜 모드 진입 */}
+              {taTargetCount > 0 && (
+                <TouchableOpacity
+                  style={styles.swipeBtn}
+                  onPress={() => router.push('/swipe-ta')}
+                  activeOpacity={0.9}>
+                  <View style={styles.swipeBtnIcon}>
+                    <Ionicons name="call" size={18} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.swipeBtnText}>빠른 콜 모드 시작</Text>
+                    <Text style={styles.swipeBtnSub}>
+                      예정 {taTargetCount}명 · 60초 타이머 + 1분 멘트
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       </SafeAreaView>
 
-      {error ? (
+      {viewMode === 'calendar' ? (
+        <ScrollView>
+          <CalendarView monthKey={monthKey} onMonthChange={setMonthKey} />
+        </ScrollView>
+      ) : error ? (
         <View style={styles.empty}>
           <View style={styles.emptyIconBox}>
             <Ionicons name="alert-circle-outline" size={32} color={Palette.orange} />
@@ -121,7 +168,7 @@ export default function PipelineScreen() {
           </View>
           <Text style={styles.emptyTitle}>이번 달은 비어있어요</Text>
           <Text style={styles.emptySub}>
-            고객 상세에서 '생명수에 추가' 눌러 카드를 채워보세요
+            고객 상세에서 '영업판에 추가' 눌러 카드를 채워보세요
           </Text>
         </View>
       ) : (
@@ -257,6 +304,31 @@ const styles = StyleSheet.create({
   },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: '700', color: Palette.textMain, letterSpacing: -0.3 },
+
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: Palette.grayBg,
+    borderRadius: Radius.md,
+    padding: 3,
+  },
+  viewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radius.sm,
+  },
+  viewBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#191F28',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  viewBtnText: { fontSize: 12, fontWeight: '600', color: Palette.textSub },
+  viewBtnTextActive: { color: Palette.textMain, fontWeight: '700' },
 
   monthRow: {
     flexDirection: 'row',

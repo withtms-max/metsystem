@@ -182,12 +182,12 @@ export default function SwipeTAScreen() {
           <Text style={styles.emptyEmoji}>📋</Text>
           <Text style={styles.emptyTitle}>TA 대상이 없어요</Text>
           <Text style={styles.emptySub}>
-            생명수 탭에서 이번 달 TA 대상 고객을 먼저 추가해주세요
+            성과 탭에서 이번 달 TA 대상 고객을 먼저 추가해주세요
           </Text>
           <TouchableOpacity
             style={styles.emptyButton}
             onPress={() => router.replace('/(tabs)/pipeline')}>
-            <Text style={styles.emptyButtonText}>생명수로 가기</Text>
+            <Text style={styles.emptyButtonText}>성과로 가기</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

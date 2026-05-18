@@ -3,3 +3,4 @@ export * from './month-key';
 export * from './script-renderer';
 export * from './csv';
 export * from './customer-export';
+export * from './month-grid';

@@ -97,7 +97,7 @@ export default function CustomerDetailScreen() {
       });
       Alert.alert(
         '추가 완료',
-        `${customer.name}님을 ${formatMonthKeyKorean(monthKey)} 생명수에 추가했어요.`,
+        `${customer.name}님을 ${formatMonthKeyKorean(monthKey)} 영업판에 추가했어요.`,
       );
     } catch (e) {
       Alert.alert('오류', e instanceof Error ? e.message : '추가 실패');
@@ -238,7 +238,7 @@ export default function CustomerDetailScreen() {
                   <>
                     <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
                     <Text style={styles.pipelineBtnText}>
-                      {formatMonthKeyKorean(monthKey)} 생명수에 추가 (TA 대상)
+                      {formatMonthKeyKorean(monthKey)} 영업판에 추가 (TA 대상)
                     </Text>
                   </>
                 )}

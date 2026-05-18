@@ -84,7 +84,7 @@ export default function HomeScreen() {
           {todayMeetings.length === 0 ? (
             <View style={styles.emptyInline}>
               <Text style={styles.emptyText}>오늘 잡힌 약속이 없네요</Text>
-              <Text style={styles.emptyHint}>생명수에서 한 명 끌어와봐요</Text>
+              <Text style={styles.emptyHint}>영업판에서 한 명 끌어와봐요</Text>
             </View>
           ) : (
             todayMeetings.map((m, i) => (
@@ -153,7 +153,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.primaryBtn}
             onPress={() => router.push('/(tabs)/pipeline')}>
-            <Text style={styles.primaryBtnText}>생명수 펼쳐보기</Text>
+            <Text style={styles.primaryBtnText}>영업판 펼쳐보기</Text>
           </TouchableOpacity>
         </View>
 
