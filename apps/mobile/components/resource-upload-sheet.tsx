@@ -112,6 +112,8 @@ export function ResourceUploadSheet({ visible, onClose, onUploaded }: Props) {
     }
 
     setLoading(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let createdResourceId: string | null = null;
     try {
       // 1) DB row 먼저 (resource id 생성)
       const resource = await createResource(supabase, {
@@ -125,6 +127,7 @@ export function ResourceUploadSheet({ visible, onClose, onUploaded }: Props) {
         file_size_bytes: mode === 'file' ? compressedSize : null,
         mime_type: mode === 'file' ? file?.mime ?? null : null,
       });
+      createdResourceId = resource.id;
 
       // 2) 파일 모드면 Storage 업로드 후 file_path UPDATE
       if (mode === 'file' && file) {
@@ -146,6 +149,14 @@ export function ResourceUploadSheet({ visible, onClose, onUploaded }: Props) {
       reset();
       onUploaded?.();
     } catch (e) {
+      // 파일 업로드 실패 시 고아 DB 행 정리
+      if (createdResourceId) {
+        try {
+          await supabase.from('team_resources').delete().eq('id', createdResourceId);
+        } catch {
+          // 정리 실패는 조용히 무시 (원본 에러가 더 중요)
+        }
+      }
       const err = e as { message?: string; details?: string; hint?: string };
       console.error('[resource upload] failed', e);
       setError(
