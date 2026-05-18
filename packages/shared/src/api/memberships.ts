@@ -266,3 +266,15 @@ export async function cancelTeamJoin(
   } as any);
   if (error) throw error;
 }
+
+/** 팀 삭제 — 오너만. 모든 데이터 (고객·자료·시책·공지) CASCADE 삭제 */
+export async function deleteTeam(
+  supabase: MetSupabaseClient,
+  organizationId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('delete_team', {
+    p_organization_id: organizationId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+  if (error) throw error;
+}

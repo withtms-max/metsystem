@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
   cancelTeamJoin,
+  deleteTeam,
   getIndustry,
   leaveTeam,
   listMyJoinRequests,
@@ -89,15 +90,21 @@ export function ProfileSheet({ visible, onClose }: Props) {
 
   const confirmLeave = async () => {
     if (!leaveTarget) return;
+    const isOwner = leaveTarget.membership.role === 'owner';
     try {
-      await leaveTeam(supabase, leaveTarget.organization.id);
+      if (isOwner) {
+        // 오너 → 팀 삭제 (마지막 오너든 아니든)
+        await deleteTeam(supabase, leaveTarget.organization.id);
+      } else {
+        await leaveTeam(supabase, leaveTarget.organization.id);
+      }
       await refreshProfile();
       await reloadTeams();
       setLeaveTarget(null);
     } catch (e) {
       const err = e as { message?: string };
       if (typeof window !== 'undefined' && window.alert) {
-        window.alert(err.message ?? '탈퇴 실패');
+        window.alert(err.message ?? '처리 실패');
       }
     }
   };
@@ -193,21 +200,29 @@ export function ProfileSheet({ visible, onClose }: Props) {
           {/* 내가 속한 팀 목록 */}
           <View style={styles.teamsBox}>
             <View style={styles.teamsHead}>
-              <Text style={styles.teamsLabel}>내가 속한 팀</Text>
-              <View style={styles.teamHeadBtns}>
-                <TouchableOpacity
-                  style={styles.teamAddBtn}
-                  onPress={() => setCreateOpen(true)}>
-                  <Ionicons name="business" size={12} color={Palette.green} />
-                  <Text style={[styles.teamAddBtnText, { color: Palette.green }]}>팀 만들기</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.teamAddBtn}
-                  onPress={() => setJoinOpen(true)}>
-                  <Ionicons name="key" size={12} color={Palette.primary} />
-                  <Text style={styles.teamAddBtnText}>코드로 참여</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.teamsLabel}>
+                내가 속한 팀{' '}
+                <Text style={styles.teamsCountText}>{myTeams.length}/5</Text>
+              </Text>
+              {myTeams.length < 5 && (
+                <View style={styles.teamHeadBtns}>
+                  <TouchableOpacity
+                    style={styles.teamAddBtn}
+                    onPress={() => setCreateOpen(true)}>
+                    <Ionicons name="business" size={12} color={Palette.green} />
+                    <Text style={[styles.teamAddBtnText, { color: Palette.green }]}>팀 만들기</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.teamAddBtn}
+                    onPress={() => setJoinOpen(true)}>
+                    <Ionicons name="key" size={12} color={Palette.primary} />
+                    <Text style={styles.teamAddBtnText}>코드로 참여</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {myTeams.length >= 5 && (
+                <Text style={styles.teamLimitText}>한도 도달 (탈퇴 후 추가)</Text>
+              )}
             </View>
             {teamsLoading && myTeams.length === 0 ? (
               <ActivityIndicator size="small" color={Palette.primary} />
@@ -288,8 +303,22 @@ export function ProfileSheet({ visible, onClose }: Props) {
           )}
 
           {/* 메뉴 */}
-          <MenuItem icon="person-outline" label="내 정보 수정" onPress={onClose} />
-          <MenuItem icon="business-outline" label="조직 정보" onPress={onClose} />
+          <MenuItem
+            icon="person-outline"
+            label="내 정보 수정"
+            onPress={() => {
+              onClose();
+              router.push('/profile/edit' as never);
+            }}
+          />
+          <MenuItem
+            icon="business-outline"
+            label="활성 팀 정보 + 초대 코드"
+            onPress={() => {
+              onClose();
+              router.push('/profile/team-info' as never);
+            }}
+          />
 
           {/* 알림 권한 */}
           <TouchableOpacity
@@ -343,15 +372,19 @@ export function ProfileSheet({ visible, onClose }: Props) {
         }}
       />
 
-      {/* 탈퇴 확인 — 팀명 입력 */}
+      {/* 탈퇴/삭제 확인 — 팀명 입력 (오너면 삭제, 아니면 탈퇴) */}
       <ConfirmNameSheet
         visible={leaveTarget !== null}
         confirmName={leaveTarget?.organization.name ?? ''}
-        title="정말 탈퇴할까요?"
-        description={
-          '탈퇴하면 이 팀의 시책·공지·자료실에 더 이상 접근할 수 없어요.\n다시 가입하려면 관리자의 승인이 필요해요.'
+        title={
+          leaveTarget?.membership.role === 'owner' ? '팀을 삭제할까요?' : '정말 탈퇴할까요?'
         }
-        destructiveLabel="탈퇴"
+        description={
+          leaveTarget?.membership.role === 'owner'
+            ? '⚠️ 당신은 이 팀의 오너입니다.\n\n팀을 삭제하면 다음이 모두 영구 삭제돼요:\n· 팀원 모두의 멤버십\n· 챌린지·공지·팀 일정\n· 자료실 파일 + 댓글\n· 가입 신청 기록\n\n팀원의 개인 고객 데이터는 그대로 유지돼요.'
+            : '탈퇴하면 이 팀의 챌린지·공지·자료실에 더 이상 접근할 수 없어요.\n다시 가입하려면 관리자의 승인이 필요해요.'
+        }
+        destructiveLabel={leaveTarget?.membership.role === 'owner' ? '팀 영구 삭제' : '탈퇴'}
         inputLabel="확인을 위해 팀 이름을 그대로 입력해주세요"
         onClose={() => setLeaveTarget(null)}
         onConfirm={confirmLeave}
@@ -446,6 +479,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   teamsLabel: { fontSize: 11, fontWeight: '700', color: Palette.textSub },
+  teamsCountText: { fontSize: 10, fontWeight: '600', color: Palette.textMuted },
+  teamLimitText: { fontSize: 10, fontWeight: '600', color: Palette.orange },
   teamHeadBtns: { flexDirection: 'row', gap: 8 },
   teamAddBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   teamAddBtnText: { fontSize: 11, fontWeight: '700', color: Palette.primary },
