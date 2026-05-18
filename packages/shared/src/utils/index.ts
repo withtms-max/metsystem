@@ -4,3 +4,5 @@ export * from './script-renderer';
 export * from './csv';
 export * from './customer-export';
 export * from './month-grid';
+export * from './holidays';
+export * from './parse-natural-date';

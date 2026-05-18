@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
   buildMonthGrid,
+  ensureHolidayGreetings,
   formatMonthKeyKorean,
   listMonthlyEvents,
   shiftMonthKey,
   WEEKDAY_KO,
   type CalendarEvent,
 } from '@metsystem/shared';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -21,6 +22,7 @@ import {
 import { Palette, Radius } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import { QuickEventAdd } from '@/components/quick-event-add';
 
 interface Props {
   monthKey: string;
@@ -34,6 +36,7 @@ const KIND_COLOR: Record<string, string> = {
   golden_time: Palette.red,
   memo: Palette.textMuted,
   message: Palette.textMuted,
+  holiday: Palette.red,
 };
 
 export function CalendarView({ monthKey, onMonthChange }: Props) {
@@ -41,6 +44,7 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   // 월 그리드 (6주 × 7일)
   const grid = useMemo(() => buildMonthGrid(monthKey), [monthKey]);
@@ -56,7 +60,7 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
     return map;
   }, [events]);
 
-  useEffect(() => {
+  const reloadEvents = useCallback(() => {
     if (!authUser) {
       setIsLoading(false);
       return;
@@ -67,6 +71,16 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
       .catch(() => setEvents([]))
       .finally(() => setIsLoading(false));
   }, [authUser, monthKey]);
+
+  useEffect(() => {
+    reloadEvents();
+  }, [reloadEvents]);
+
+  // 캘린더 진입 시 한 번 명절 D-2 골든타임 룰 자동 생성 (idempotent)
+  useEffect(() => {
+    if (!authUser) return;
+    void ensureHolidayGreetings(supabase, authUser.id).catch(() => {});
+  }, [authUser]);
 
   const selectedEvents = selectedDate ? eventsByDate.get(selectedDate) ?? [] : [];
 
@@ -119,6 +133,8 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
               const dayEvents = eventsByDate.get(cell.date) ?? [];
               const kindsInDay = new Set(dayEvents.map((e) => e.kind));
               const isSelected = selectedDate === cell.date;
+              const holidayEvent = dayEvents.find((e) => e.kind === 'holiday');
+              const isHoliday = !!holidayEvent;
               return (
                 <TouchableOpacity
                   key={cell.date}
@@ -132,14 +148,21 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
                         !cell.inMonth && styles.dayTextOut,
                         cell.weekday === 0 && cell.inMonth && { color: Palette.red },
                         cell.weekday === 6 && cell.inMonth && { color: Palette.blue },
+                        isHoliday && cell.inMonth && { color: Palette.red },
                         cell.isToday && styles.dayTextToday,
                       ]}>
                       {cell.day}
                     </Text>
                   </View>
+                  {isHoliday && cell.inMonth && (
+                    <Text style={styles.holidayLabel} numberOfLines={1}>
+                      {holidayEvent.label}
+                    </Text>
+                  )}
                   {dayEvents.length > 0 && (
                     <View style={styles.dotsRow}>
                       {Array.from(kindsInDay)
+                        .filter((k) => k !== 'holiday')
                         .slice(0, 4)
                         .map((kind, i) => (
                           <View
@@ -161,8 +184,22 @@ export function CalendarView({ monthKey, onMonthChange }: Props) {
         <Legend color={Palette.blue} label="통화" />
         <Legend color={Palette.green} label="미팅" />
         <Legend color={Palette.orange} label="계약" />
-        <Legend color={Palette.red} label="기념일" />
+        <Legend color={Palette.red} label="기념일·공휴일" />
       </View>
+
+      {/* FAB — 빠른 일정 추가 */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setQuickAddOpen(true)}
+        activeOpacity={0.85}>
+        <Ionicons name="add" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      <QuickEventAdd
+        visible={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        onAdded={reloadEvents}
+      />
 
       {/* 날짜 상세 시트 */}
       <Modal
@@ -304,13 +341,38 @@ const styles = StyleSheet.create({
   dayTextOut: { color: Palette.borderStrong },
   dayTextToday: { color: '#FFFFFF', fontWeight: '700' },
 
+  holidayLabel: {
+    fontSize: 9,
+    color: Palette.red,
+    fontWeight: '600',
+    marginTop: 2,
+    paddingHorizontal: 2,
+    textAlign: 'center',
+  },
   dotsRow: {
     flexDirection: 'row',
     gap: 2,
-    marginTop: 4,
+    marginTop: 2,
     minHeight: 6,
   },
   dot: { width: 5, height: 5, borderRadius: 3 },
+
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Palette.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Palette.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+  },
 
   legend: {
     flexDirection: 'row',

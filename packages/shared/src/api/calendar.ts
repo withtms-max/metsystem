@@ -1,5 +1,6 @@
 import type { MetSupabaseClient } from '../supabase/client';
 import type { ActivityType, GoldenTimeRuleType } from '../types/database';
+import { getHolidaysInMonth } from '../utils/holidays';
 
 export type CalendarEventKind =
   | 'ta_call'
@@ -7,7 +8,8 @@ export type CalendarEventKind =
   | 'memo'
   | 'message'
   | 'contract'
-  | 'golden_time';
+  | 'golden_time'
+  | 'holiday';
 
 export interface CalendarEvent {
   /** YYYY-MM-DD */
@@ -104,6 +106,16 @@ export async function listMonthlyEvents(
       kind: 'golden_time',
       label: `${name} ${ruleTypeLabel(r.rule_type)}`,
       meta: { rule_type: r.rule_type },
+    });
+  }
+
+  // 한국 공휴일
+  for (const h of getHolidaysInMonth(monthKey)) {
+    events.push({
+      date: h.date,
+      kind: 'holiday',
+      label: h.name,
+      meta: { holiday_type: h.type },
     });
   }
 
