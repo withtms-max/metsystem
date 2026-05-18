@@ -2,9 +2,18 @@ import type { Session, User as AuthUser } from '@supabase/supabase-js';
 import type { MetSupabaseClient } from '../supabase/client';
 import type { User, UserRole } from '../types/database';
 
+export interface OrgSummary {
+  id: string;
+  name: string;
+  industry: string | null;
+  invite_code: string | null;
+}
+
 export interface SessionState {
   authUser: AuthUser | null;
   profile: User | null;
+  /** 사용자가 속한 조직의 요약 정보 (industry 포함) */
+  organization: OrgSummary | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isOnboarded: boolean;
@@ -13,6 +22,7 @@ export interface SessionState {
 export const INITIAL_SESSION_STATE: SessionState = {
   authUser: null,
   profile: null,
+  organization: null,
   isLoading: true,
   isAuthenticated: false,
   isOnboarded: false,
@@ -35,15 +45,34 @@ export async function loadProfile(
   return (data ?? null) as User | null;
 }
 
+/** 조직 요약 정보 (industry 포함) — 회원이 속한 조직 1개 */
+export async function loadOrganization(
+  supabase: MetSupabaseClient,
+  organizationId: string,
+): Promise<OrgSummary | null> {
+  const { data, error } = await supabase
+    .from('organizations')
+    .select('id, name, industry, invite_code')
+    .eq('id', organizationId)
+    .maybeSingle();
+  if (error && error.code !== 'PGRST116') {
+    console.error('[auth] loadOrganization error:', error);
+    return null;
+  }
+  return (data ?? null) as OrgSummary | null;
+}
+
 export function deriveSessionState(
   session: Session | null,
   profile: User | null,
   isLoading = false,
+  organization: OrgSummary | null = null,
 ): SessionState {
   const authUser = session?.user ?? null;
   return {
     authUser,
     profile,
+    organization,
     isLoading,
     isAuthenticated: !!authUser,
     isOnboarded: !!profile && !!profile.role && !!profile.name,

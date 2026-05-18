@@ -2,6 +2,7 @@ import {
   completeOnboarding,
   deriveSessionState,
   INITIAL_SESSION_STATE,
+  loadOrganization,
   loadProfile,
   type OnboardingInput,
   type SessionState,
@@ -29,7 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const profile = await loadProfile(supabase, session.user.id);
-    setState(deriveSessionState(session, profile, false));
+    const organization = profile?.organization_id
+      ? await loadOrganization(supabase, profile.organization_id)
+      : null;
+    setState(deriveSessionState(session, profile, false, organization));
   }, []);
 
   useEffect(() => {
@@ -70,14 +74,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = await supabase.auth.getUser();
     if (!user) throw new Error('로그인이 필요해요');
     const profile = await completeOnboarding(supabase, user.id, user.email ?? null, input);
-    setState((prev) => deriveSessionState(prev.authUser ? { user: prev.authUser } as Session : null, profile, false));
+    const organization = profile?.organization_id
+      ? await loadOrganization(supabase, profile.organization_id)
+      : null;
+    setState((prev) =>
+      deriveSessionState(
+        prev.authUser ? ({ user: prev.authUser } as Session) : null,
+        profile,
+        false,
+        organization,
+      ),
+    );
   }, []);
 
   const refreshProfile = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
       const profile = await loadProfile(supabase, data.session.user.id);
-      setState(deriveSessionState(data.session, profile, false));
+      const organization = profile?.organization_id
+        ? await loadOrganization(supabase, profile.organization_id)
+        : null;
+      setState(deriveSessionState(data.session, profile, false, organization));
     }
   }, []);
 

@@ -39,7 +39,7 @@ export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { authUser } = useAuth();
-  const { customers, update, remove, isLoading } = useCustomers();
+  const { customers, update, isLoading } = useCustomers();
   const monthKey = currentMonthKey();
   const { cards, add: addToPipeline } = usePipeline(monthKey);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
@@ -106,24 +106,6 @@ export default function CustomerDetailScreen() {
     }
   };
 
-  const handleDelete = () => {
-    Alert.alert('삭제 확인', `${customer.name}님을 삭제할까요?\n복구 불가능합니다.`, [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await remove(customer.id);
-            router.back();
-          } catch (e) {
-            Alert.alert('오류', e instanceof Error ? e.message : '삭제 실패');
-          }
-        },
-      },
-    ]);
-  };
-
   const handleGradeChange = async (g: CustomerGrade) => {
     try {
       await update(customer.id, { grade: g });
@@ -150,7 +132,10 @@ export default function CustomerDetailScreen() {
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{customer.company ?? customer.name}</Text>
-          <TouchableOpacity onPress={handleDelete}>
+          <TouchableOpacity
+            onPress={() =>
+              router.push({ pathname: '/customer/[id]/edit', params: { id: customer.id } })
+            }>
             <Text style={styles.headerEditBtn}>수정</Text>
           </TouchableOpacity>
         </View>

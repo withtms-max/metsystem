@@ -85,6 +85,10 @@ export interface CustomerRow {
   region_tag: string | null;
   latitude: number | null;
   longitude: number | null;
+  home_latitude: number | null;
+  home_longitude: number | null;
+  contract_latitude: number | null;
+  contract_longitude: number | null;
   source: string | null;
   profile_image_url: string | null;
   memo: string | null;
@@ -198,6 +202,10 @@ export interface Database {
           address?: string | null;
           home_address?: string | null;
           contract_address?: string | null;
+          home_latitude?: number | null;
+          home_longitude?: number | null;
+          contract_latitude?: number | null;
+          contract_longitude?: number | null;
           grade?: CustomerGrade;
           region_tag?: string | null;
           latitude?: number | null;

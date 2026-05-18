@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { getIndustry } from '@metsystem/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -21,9 +22,10 @@ interface Props {
 }
 
 export function ProfileSheet({ visible, onClose }: Props) {
-  const { profile, authUser, signOut } = useAuth();
+  const { profile, authUser, organization, signOut } = useAuth();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const industryDef = getIndustry(organization?.industry);
 
   const doSignOut = async () => {
     if (loggingOut) return;
@@ -95,6 +97,18 @@ export function ProfileSheet({ visible, onClose }: Props) {
           </View>
 
           <View style={styles.divider} />
+
+          {/* 조직 + 업종 미리보기 */}
+          {organization && (
+            <View style={styles.orgBox}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.orgName}>{organization.name}</Text>
+                <Text style={styles.orgIndustry}>
+                  {industryDef.emoji} {industryDef.label} · {industryDef.desc}
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* 메뉴 */}
           <MenuItem icon="person-outline" label="내 정보 수정" onPress={onClose} />
@@ -187,6 +201,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   roleChipText: { color: Palette.primaryDeep, fontSize: 11, fontWeight: '700' },
+  orgBox: {
+    flexDirection: 'row',
+    backgroundColor: Palette.grayBg,
+    borderRadius: Radius.md,
+    padding: 12,
+    marginBottom: 6,
+  },
+  orgName: { fontSize: 14, fontWeight: '700', color: Palette.textMain },
+  orgIndustry: { fontSize: 11, color: Palette.textSub, marginTop: 3 },
 
   divider: { height: 1, backgroundColor: Palette.border, marginVertical: 4 },
 

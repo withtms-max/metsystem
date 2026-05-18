@@ -4,73 +4,133 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { GradeColor, Palette } from '@/constants/theme';
 import { useKakaoMaps } from '@/hooks/use-kakao-map';
 
+export type PinKind = 'work' | 'home' | 'contract';
+
+/** 핀 한 개 = (고객, 주소 종류, 좌표) */
+export interface CustomerPin {
+  customer: Customer;
+  kind: PinKind;
+  lat: number;
+  lng: number;
+}
+
 interface Props {
   customers: Customer[];
-  onPinPress: (customerId: string) => void;
-  /** 초기 중심 좌표 (없으면 첫 고객 또는 서울 시청) */
+  onPinPress: (pin: CustomerPin) => void;
   center?: { lat: number; lng: number };
+  /** 사용자 현재 위치 — 표시되면 파란 점 마커 */
+  userLocation?: { lat: number; lng: number } | null;
 }
 
 const SEOUL_CITY_HALL = { lat: 37.5666103, lng: 126.9783882 };
 
+const KIND_EMOJI: Record<PinKind, string> = {
+  work: '🏢',
+  home: '🏠',
+  contract: '📝',
+};
+
+/** 한 고객의 등록된 주소 갯수만큼 핀으로 펼침 */
+export function explodeCustomerPins(customers: Customer[]): CustomerPin[] {
+  const pins: CustomerPin[] = [];
+  for (const c of customers) {
+    if (c.latitude != null && c.longitude != null) {
+      pins.push({ customer: c, kind: 'work', lat: c.latitude, lng: c.longitude });
+    }
+    if (c.home_latitude != null && c.home_longitude != null) {
+      pins.push({
+        customer: c,
+        kind: 'home',
+        lat: c.home_latitude,
+        lng: c.home_longitude,
+      });
+    }
+    if (c.contract_latitude != null && c.contract_longitude != null) {
+      pins.push({
+        customer: c,
+        kind: 'contract',
+        lat: c.contract_latitude,
+        lng: c.contract_longitude,
+      });
+    }
+  }
+  return pins;
+}
+
 /**
- * 카카오 맵에 고객 핀 표시.
- * - 등급별 컬러 마커 (A 빨강, B 주황, C 블루, D 그레이)
- * - 마커 클릭 → onPinPress(customerId)
- * - Web 전용 — 네이티브는 안내 텍스트
+ * 카카오 맵에 고객 다중 핀 표시.
+ * - 등급별 컬러 + 주소 종류별 이모지 라벨
+ * - 핀 클릭 → onPinPress(pin)
  */
-export function CustomerMap({ customers, onPinPress, center }: Props) {
+export function CustomerMap({ customers, onPinPress, center, userLocation }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { maps, ready, error } = useKakaoMaps();
   const markersRef = useRef<{ marker: { setMap: (m: unknown) => void } }[]>([]);
 
-  // 좌표가 있는 고객만
-  const pinned = customers.filter(
-    (c): c is Customer & { latitude: number; longitude: number } =>
-      c.latitude != null && c.longitude != null,
-  );
+  const pins = explodeCustomerPins(customers);
 
   useEffect(() => {
     if (!ready || !maps || !containerRef.current) return;
 
     const initialCenter = center
       ? new maps.LatLng(center.lat, center.lng)
-      : pinned.length > 0
-        ? new maps.LatLng(pinned[0].latitude, pinned[0].longitude)
+      : pins.length > 0
+        ? new maps.LatLng(pins[0].lat, pins[0].lng)
         : new maps.LatLng(SEOUL_CITY_HALL.lat, SEOUL_CITY_HALL.lng);
 
     const map = new maps.Map(containerRef.current, {
       center: initialCenter,
-      level: pinned.length > 0 ? 7 : 10,
+      level: pins.length > 0 ? 7 : 10,
     });
 
-    // 기존 마커 제거
     markersRef.current.forEach((m) => m.marker.setMap(null));
     markersRef.current = [];
 
-    // SVG 데이터 URI로 등급별 마커
-    const makeMarkerSvg = (color: string) =>
+    // 등급 색 + 종류 이모지 박힌 SVG 마커
+    const makeMarkerSvg = (color: string, emoji: string) =>
       `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="40" viewBox="0 0 32 40">
-          <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${color}"/>
-          <circle cx="16" cy="16" r="6" fill="white"/>
+        `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
+          <path d="M18 0C8.1 0 0 8.1 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.1 27.9 0 18 0z" fill="${color}"/>
+          <circle cx="18" cy="18" r="11" fill="white"/>
+          <text x="18" y="23" text-anchor="middle" font-size="14" font-family="Arial,sans-serif">${emoji}</text>
         </svg>`,
       )}`;
 
-    pinned.forEach((c) => {
-      const dotColor = GradeColor[c.grade].dot;
+    // 사용자 위치 — 파란 점
+    if (userLocation) {
+      const userImage = new maps.MarkerImage(
+        `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+            <circle cx="10" cy="10" r="9" fill="#3182F6" fill-opacity="0.25"/>
+            <circle cx="10" cy="10" r="6" fill="#3182F6" stroke="white" stroke-width="2"/>
+          </svg>`,
+        )}`,
+        new maps.Size(20, 20),
+        { offset: new maps.Point(10, 10) },
+      );
+      const userMarker = new maps.Marker({
+        position: new maps.LatLng(userLocation.lat, userLocation.lng),
+        map,
+        image: userImage,
+        title: '내 위치',
+      });
+      markersRef.current.push({ marker: userMarker });
+    }
+
+    pins.forEach((pin) => {
+      const dotColor = GradeColor[pin.customer.grade].dot;
       const image = new maps.MarkerImage(
-        makeMarkerSvg(dotColor),
-        new maps.Size(32, 40),
-        { offset: new maps.Point(16, 40) },
+        makeMarkerSvg(dotColor, KIND_EMOJI[pin.kind]),
+        new maps.Size(36, 44),
+        { offset: new maps.Point(18, 44) },
       );
       const marker = new maps.Marker({
-        position: new maps.LatLng(c.latitude, c.longitude),
+        position: new maps.LatLng(pin.lat, pin.lng),
         map,
         image,
-        title: c.company ?? c.name,
+        title: `${pin.customer.company ?? pin.customer.name} · ${kindLabel(pin.kind)}`,
       });
-      maps.event.addListener(marker, 'click', () => onPinPress(c.id));
+      maps.event.addListener(marker, 'click', () => onPinPress(pin));
       markersRef.current.push({ marker });
     });
 
@@ -79,7 +139,7 @@ export function CustomerMap({ customers, onPinPress, center }: Props) {
       markersRef.current = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, maps, pinned.length, center?.lat, center?.lng]);
+  }, [ready, maps, pins.length, center?.lat, center?.lng, userLocation?.lat, userLocation?.lng]);
 
   if (Platform.OS !== 'web') {
     return (
@@ -112,7 +172,7 @@ export function CustomerMap({ customers, onPinPress, center }: Props) {
   return (
     <View style={styles.wrap}>
       <div ref={containerRef} style={webMapStyle} />
-      {pinned.length === 0 && (
+      {pins.length === 0 && (
         <View style={styles.emptyOverlay}>
           <Text style={styles.emptyTitle}>아직 좌표가 있는 고객이 없어요</Text>
           <Text style={styles.emptySub}>
@@ -122,6 +182,10 @@ export function CustomerMap({ customers, onPinPress, center }: Props) {
       )}
     </View>
   );
+}
+
+export function kindLabel(kind: PinKind): string {
+  return kind === 'work' ? '직장' : kind === 'home' ? '자택' : '계약 장소';
 }
 
 const webMapStyle = {

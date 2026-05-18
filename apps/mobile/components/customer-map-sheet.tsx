@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { listActivities, type ActivityLog, type Customer } from '@metsystem/shared';
+import { listActivities, type ActivityLog } from '@metsystem/shared';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,11 +11,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { kindLabel, type CustomerPin } from '@/components/customer-map';
 import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface Props {
-  customer: Customer | null;
+  pin: CustomerPin | null;
   onClose: () => void;
   onOpenDetail: (id: string) => void;
 }
@@ -24,9 +25,10 @@ interface Props {
  * 부동산 앱 스타일 슬라이드업 — 핀 클릭 시 표시
  * 최근 활동·등급·전화·길찾기·상세보기
  */
-export function CustomerMapSheet({ customer, onClose, onOpenDetail }: Props) {
+export function CustomerMapSheet({ pin, onClose, onOpenDetail }: Props) {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(false);
+  const customer = pin?.customer ?? null;
 
   useEffect(() => {
     if (!customer) return;
@@ -37,25 +39,25 @@ export function CustomerMapSheet({ customer, onClose, onOpenDetail }: Props) {
       .finally(() => setLoading(false));
   }, [customer]);
 
-  if (!customer) return null;
+  if (!pin || !customer) return null;
   const grade = GradeColor[customer.grade];
+  const kindAddress =
+    pin.kind === 'work'
+      ? customer.address
+      : pin.kind === 'home'
+        ? customer.home_address
+        : customer.contract_address;
 
   const handleCall = () => {
     if (customer.phone) Linking.openURL(`tel:${customer.phone}`).catch(() => {});
   };
 
   const handleNavigate = () => {
-    // 카카오맵 길찾기 — 좌표 있으면 좌표, 없으면 주소 검색
-    const target = customer.address ?? customer.home_address ?? '';
-    if (customer.latitude && customer.longitude) {
-      const url = `https://map.kakao.com/link/to/${encodeURIComponent(
-        customer.company ?? customer.name,
-      )},${customer.latitude},${customer.longitude}`;
-      Linking.openURL(url).catch(() => {});
-    } else if (target) {
-      const url = `https://map.kakao.com/link/search/${encodeURIComponent(target)}`;
-      Linking.openURL(url).catch(() => {});
-    }
+    // 클릭한 핀의 좌표로 길찾기
+    const url = `https://map.kakao.com/link/to/${encodeURIComponent(
+      `${customer.company ?? customer.name} ${kindLabel(pin.kind)}`,
+    )},${pin.lat},${pin.lng}`;
+    Linking.openURL(url).catch(() => {});
   };
 
   const lastContract = activities.find((a) => a.activity_type === 'contract');
@@ -67,7 +69,7 @@ export function CustomerMapSheet({ customer, onClose, onOpenDetail }: Props) {
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.handle} />
 
-          {/* 헤더 */}
+          {/* 헤더 — 핀 타입 강조 */}
           <View style={styles.header}>
             <View style={[styles.avatar, { backgroundColor: grade.bg }]}>
               <Text style={[styles.avatarText, { color: grade.fg }]}>
@@ -75,7 +77,10 @@ export function CustomerMapSheet({ customer, onClose, onOpenDetail }: Props) {
               </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{customer.company ?? customer.name}</Text>
+              <Text style={styles.name}>
+                {customer.company ?? customer.name}
+                <Text style={styles.kindBadge}>  · {kindLabel(pin.kind)}</Text>
+              </Text>
               <Text style={styles.sub}>
                 {customer.name}
                 {customer.job_title ? ` · ${customer.job_title}` : ''}
@@ -87,21 +92,47 @@ export function CustomerMapSheet({ customer, onClose, onOpenDetail }: Props) {
             </View>
           </View>
 
-          {/* 주소 + 이력 */}
+          {/* 클릭한 주소 강조 + 다른 주소 요약 */}
           <View style={styles.infoBox}>
-            {customer.address && (
+            {kindAddress && (
               <View style={styles.row}>
-                <Ionicons name="business-outline" size={14} color={Palette.textSub} />
-                <Text style={styles.rowText} numberOfLines={1}>
-                  {customer.address}
+                <Ionicons
+                  name={
+                    pin.kind === 'work'
+                      ? 'business'
+                      : pin.kind === 'home'
+                        ? 'home'
+                        : 'document-text'
+                  }
+                  size={14}
+                  color={Palette.primary}
+                />
+                <Text style={[styles.rowText, { color: Palette.textMain, fontWeight: '700' }]} numberOfLines={1}>
+                  {kindAddress}
                 </Text>
               </View>
             )}
-            {customer.home_address && (
+            {pin.kind !== 'work' && customer.address && (
               <View style={styles.row}>
-                <Ionicons name="home-outline" size={14} color={Palette.textSub} />
-                <Text style={styles.rowText} numberOfLines={1}>
-                  {customer.home_address}
+                <Ionicons name="business-outline" size={12} color={Palette.textMuted} />
+                <Text style={styles.rowTextSub} numberOfLines={1}>
+                  직장 · {customer.address}
+                </Text>
+              </View>
+            )}
+            {pin.kind !== 'home' && customer.home_address && (
+              <View style={styles.row}>
+                <Ionicons name="home-outline" size={12} color={Palette.textMuted} />
+                <Text style={styles.rowTextSub} numberOfLines={1}>
+                  자택 · {customer.home_address}
+                </Text>
+              </View>
+            )}
+            {pin.kind !== 'contract' && customer.contract_address && (
+              <View style={styles.row}>
+                <Ionicons name="document-text-outline" size={12} color={Palette.textMuted} />
+                <Text style={styles.rowTextSub} numberOfLines={1}>
+                  계약 · {customer.contract_address}
                 </Text>
               </View>
             )}
@@ -214,9 +245,11 @@ const styles = StyleSheet.create({
   gradeDot: { width: 6, height: 6, borderRadius: 3 },
   gradeChipText: { fontSize: 11, fontWeight: '700' },
 
+  kindBadge: { color: Palette.primary, fontSize: 13, fontWeight: '700' },
   infoBox: { gap: 6, marginBottom: 12 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   rowText: { fontSize: 12, color: Palette.textMain, flex: 1 },
+  rowTextSub: { fontSize: 11, color: Palette.textMuted, flex: 1 },
 
   historyBox: {
     backgroundColor: Palette.bg,

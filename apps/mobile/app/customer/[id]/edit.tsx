@@ -4,8 +4,8 @@ import {
   shouldShowAddressField,
   type CustomerGrade,
 } from '@metsystem/shared';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -22,51 +22,67 @@ import { AddressSearchButton } from '@/components/address-search-button';
 import { useAuth } from '@/lib/auth-context';
 import { useCustomers } from '@/hooks/use-customers';
 
-const GRADES: CustomerGrade[] = ['A', 'B', 'C', 'D'];
-const GRADE_COLOR: Record<CustomerGrade, string> = {
-  A: '#EF4444',
-  B: '#F59E0B',
-  C: '#3B82F6',
-  D: '#94A3B8',
-};
-
-export default function NewCustomerScreen() {
+/**
+ * 기존 고객 편집 — 명함 입력 후에도 주소 검색으로 좌표 추가 가능.
+ * new.tsx 와 거의 동일한 폼이지만 update() 호출.
+ */
+export default function EditCustomerScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { authUser, organization } = useAuth();
-  const { create } = useCustomers();
+  const { organization } = useAuth();
+  const { customers, update, remove } = useCustomers();
+  const existing = customers.find((c) => c.id === id);
+
   const industry = organization?.industry ?? null;
   const showHome = shouldShowAddressField(industry, 'home');
   const showContract = shouldShowAddressField(industry, 'contract');
-  const hasExtraFields = showHome || showContract;
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [company, setCompany] = useState('');
   const [jobTitle, setJobTitle] = useState('');
-  // 보험 도메인 3개 주소
-  const [address, setAddress] = useState('');           // 직장 (지도 표시 1순위)
-  const [homeAddress, setHomeAddress] = useState('');   // 자택
-  const [contractAddress, setContractAddress] = useState(''); // 계약 장소
-  /** 펼침 토글 — 직장만 기본 노출 */
-  const [showExtraAddresses, setShowExtraAddresses] = useState(false);
-
+  const [address, setAddress] = useState('');
+  const [homeAddress, setHomeAddress] = useState('');
+  const [contractAddress, setContractAddress] = useState('');
   const [memo, setMemo] = useState('');
   const [grade, setGrade] = useState<CustomerGrade>('D');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  /** Daum 검색으로 받아온 정확한 시군구 — 우선 사용 */
-  const [sigunguFromSearch, setSigunguFromSearch] = useState<string | null>(null);
-  /** 직장·자택·계약 각각 좌표 */
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [homeCoords, setHomeCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [contractCoords, setContractCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [sigunguFromSearch, setSigunguFromSearch] = useState<string | null>(null);
+
   const [geocoding, setGeocoding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const kakaoRestKey = process.env.EXPO_PUBLIC_KAKAO_REST_KEY ?? '';
 
-  // 검색으로 얻은 시군구가 있으면 그것을 우선, 없으면 regex 폴백
-  const detectedRegion = sigunguFromSearch ?? extractRegionTag(address);
+  // 기존 값 채우기
+  useEffect(() => {
+    if (!existing) return;
+    setName(existing.name);
+    setPhone(existing.phone ?? '');
+    setCompany(existing.company ?? '');
+    setJobTitle(existing.job_title ?? '');
+    setAddress(existing.address ?? '');
+    setHomeAddress(existing.home_address ?? '');
+    setContractAddress(existing.contract_address ?? '');
+    setMemo(existing.memo ?? '');
+    setGrade(existing.grade);
+    if (existing.latitude != null && existing.longitude != null) {
+      setCoords({ lat: existing.latitude, lng: existing.longitude });
+    }
+    if (existing.home_latitude != null && existing.home_longitude != null) {
+      setHomeCoords({ lat: existing.home_latitude, lng: existing.home_longitude });
+    }
+    if (existing.contract_latitude != null && existing.contract_longitude != null) {
+      setContractCoords({ lat: existing.contract_latitude, lng: existing.contract_longitude });
+    }
+  }, [existing]);
 
-  /** Daum Postcode 선택 → Kakao Geocoding 자동 호출 → 좌표 저장 */
+  const detectedRegion =
+    sigunguFromSearch ?? existing?.region_tag ?? extractRegionTag(address);
+
   const handleAddressSelect = async (
     target: 'work' | 'home' | 'contract',
     result: { roadAddress: string; jibunAddress: string; sigungu: string },
@@ -80,8 +96,6 @@ export default function NewCustomerScreen() {
     } else {
       setContractAddress(picked);
     }
-
-    // 모든 주소 타입에 대해 지오코딩 → 다중 핀 지원
     if (kakaoRestKey) {
       setGeocoding(true);
       try {
@@ -101,17 +115,13 @@ export default function NewCustomerScreen() {
   const handleSubmit = async () => {
     setError(null);
     if (!name.trim()) {
-      setError('이름은 필수입니다');
+      setError('이름은 필수예요');
       return;
     }
-    if (!authUser) {
-      setError('로그인이 필요해요');
-      return;
-    }
+    if (!existing) return;
     setLoading(true);
     try {
-      await create({
-        owner_id: authUser.id,
+      await update(existing.id, {
         name: name.trim(),
         phone: phone.trim() || null,
         company: company.trim() || null,
@@ -128,7 +138,6 @@ export default function NewCustomerScreen() {
         region_tag: detectedRegion ?? null,
         memo: memo.trim() || null,
         grade,
-        source: 'manual',
       });
       router.back();
     } catch (e) {
@@ -137,6 +146,23 @@ export default function NewCustomerScreen() {
       setLoading(false);
     }
   };
+
+  if (!existing) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.cancel}>닫기</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>고객 편집</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>고객을 찾을 수 없어요</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -147,7 +173,7 @@ export default function NewCustomerScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.cancel}>취소</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>새 고객 등록</Text>
+          <Text style={styles.headerTitle}>고객 편집</Text>
           <TouchableOpacity onPress={handleSubmit} disabled={loading}>
             {loading ? (
               <ActivityIndicator color="#2563EB" />
@@ -159,52 +185,30 @@ export default function NewCustomerScreen() {
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>이름 *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="홍길동"
-            placeholderTextColor="#94A3B8"
-            value={name}
-            onChangeText={setName}
-          />
+          <TextInput style={styles.input} value={name} onChangeText={setName} />
 
           <Text style={styles.label}>연락처</Text>
           <TextInput
             style={styles.input}
-            placeholder="010-1234-5678"
-            placeholderTextColor="#94A3B8"
             keyboardType="phone-pad"
             value={phone}
             onChangeText={setPhone}
           />
 
           <Text style={styles.label}>회사</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="한빛산업"
-            placeholderTextColor="#94A3B8"
-            value={company}
-            onChangeText={setCompany}
-          />
+          <TextInput style={styles.input} value={company} onChangeText={setCompany} />
 
           <Text style={styles.label}>직함</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="대표이사"
-            placeholderTextColor="#94A3B8"
-            value={jobTitle}
-            onChangeText={setJobTitle}
-          />
+          <TextInput style={styles.input} value={jobTitle} onChangeText={setJobTitle} />
 
           <Text style={styles.label}>🏢 직장 주소 (지도 표시)</Text>
           <TextInput
             style={styles.input}
-            placeholder="경기도 성남시 분당구 판교로..."
-            placeholderTextColor="#94A3B8"
             value={address}
             onChangeText={(t) => {
               setAddress(t);
               if (sigunguFromSearch) setSigunguFromSearch(null);
-              if (coords) setCoords(null); // 수동 편집 시 좌표도 무효화
+              if (coords) setCoords(null);
             }}
           />
           <AddressSearchButton onSelect={(r) => handleAddressSelect('work', r)} />
@@ -216,61 +220,34 @@ export default function NewCustomerScreen() {
             </Text>
           )}
 
-          {/* 업종이 자택·계약 필드를 요구하는 경우만 노출 (예: 보험) */}
-          {hasExtraFields && !showExtraAddresses && (
-            <TouchableOpacity
-              style={styles.expandBtn}
-              onPress={() => setShowExtraAddresses(true)}>
-              <Text style={styles.expandBtnText}>
-                ＋ {showHome && showContract ? '자택·계약 장소' : showHome ? '자택 주소' : '계약 장소'}{' '}
-                추가
-              </Text>
-            </TouchableOpacity>
-          )}
-          {hasExtraFields && showExtraAddresses && (
+          {showHome && (
             <>
-              {showHome && (
-                <>
-                  <Text style={styles.label}>🏠 자택 주소 (생일·연하장 발송)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="자택 주소"
-                    placeholderTextColor="#94A3B8"
-                    value={homeAddress}
-                    onChangeText={setHomeAddress}
-                  />
-                  <AddressSearchButton onSelect={(r) => handleAddressSelect('home', r)} />
-                </>
-              )}
+              <Text style={styles.label}>🏠 자택 주소</Text>
+              <TextInput style={styles.input} value={homeAddress} onChangeText={setHomeAddress} />
+              <AddressSearchButton onSelect={(r) => handleAddressSelect('home', r)} />
+            </>
+          )}
 
-              {showContract && (
-                <>
-                  <Text style={styles.label}>📝 계약 장소 (청약서 작성지)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="계약 장소"
-                    placeholderTextColor="#94A3B8"
-                    value={contractAddress}
-                    onChangeText={setContractAddress}
-                  />
-                  <AddressSearchButton onSelect={(r) => handleAddressSelect('contract', r)} />
-                </>
-              )}
+          {showContract && (
+            <>
+              <Text style={styles.label}>📝 계약 장소</Text>
+              <TextInput
+                style={styles.input}
+                value={contractAddress}
+                onChangeText={setContractAddress}
+              />
+              <AddressSearchButton onSelect={(r) => handleAddressSelect('contract', r)} />
             </>
           )}
 
           <Text style={styles.label}>등급</Text>
           <View style={styles.gradeRow}>
-            {GRADES.map((g) => (
+            {(['A', 'B', 'C', 'D'] as CustomerGrade[]).map((g) => (
               <TouchableOpacity
                 key={g}
                 onPress={() => setGrade(g)}
-                style={[
-                  styles.gradeBtn,
-                  grade === g && { backgroundColor: GRADE_COLOR[g], borderColor: GRADE_COLOR[g] },
-                ]}>
-                <Text
-                  style={[styles.gradeBtnText, grade === g && styles.gradeBtnTextActive]}>
+                style={[styles.gradeBtn, grade === g && styles.gradeBtnActive]}>
+                <Text style={[styles.gradeBtnText, grade === g && styles.gradeBtnTextActive]}>
                   {g}급
                 </Text>
               </TouchableOpacity>
@@ -280,16 +257,30 @@ export default function NewCustomerScreen() {
           <Text style={styles.label}>메모</Text>
           <TextInput
             style={[styles.input, styles.textarea]}
-            placeholder="가지급금 상담중, 지난번 만남 분위기 좋았음..."
-            placeholderTextColor="#94A3B8"
             value={memo}
             onChangeText={setMemo}
             multiline
-            numberOfLines={4}
             textAlignVertical="top"
           />
 
           {error && <Text style={styles.error}>{error}</Text>}
+
+          {/* 위험 영역 */}
+          <View style={styles.dangerBox}>
+            <Text style={styles.dangerLabel}>위험 영역</Text>
+            <TouchableOpacity
+              style={styles.dangerBtn}
+              onPress={() => {
+                const ok =
+                  Platform.OS === 'web'
+                    ? window.confirm(`${existing.name}님을 정말 삭제할까요? 복구 불가능합니다.`)
+                    : true; // 네이티브는 Alert 추가 필요
+                if (!ok) return;
+                void remove(existing.id).then(() => router.back());
+              }}>
+              <Text style={styles.dangerBtnText}>고객 삭제</Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={{ height: 24 }} />
         </ScrollView>
@@ -313,7 +304,6 @@ const styles = StyleSheet.create({
   cancel: { color: '#64748B', fontSize: 15, fontWeight: '600' },
   save: { color: '#2563EB', fontSize: 15, fontWeight: '700' },
   headerTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-
   scroll: { padding: 20 },
   label: { fontSize: 13, fontWeight: '700', color: '#475569', marginTop: 12, marginBottom: 6 },
   input: {
@@ -328,15 +318,6 @@ const styles = StyleSheet.create({
   },
   textarea: { minHeight: 100 },
   detected: { fontSize: 12, color: '#10B981', marginTop: 4, fontWeight: '600' },
-  expandBtn: {
-    marginTop: 10,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#F2F4F6',
-    alignItems: 'center',
-  },
-  expandBtnText: { fontSize: 13, color: '#4E5968', fontWeight: '600' },
-
   gradeRow: { flexDirection: 'row', gap: 8 },
   gradeBtn: {
     flex: 1,
@@ -347,8 +328,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
+  gradeBtnActive: { backgroundColor: '#3182F6', borderColor: '#3182F6' },
   gradeBtnText: { fontWeight: '700', color: '#64748B' },
   gradeBtnTextActive: { color: '#FFFFFF' },
-
   error: { color: '#DC2626', fontSize: 13, marginTop: 16, fontWeight: '600' },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  emptyText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
+  dangerBox: {
+    marginTop: 32,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#FEE2E2',
+  },
+  dangerLabel: { fontSize: 11, fontWeight: '700', color: '#DC2626', marginBottom: 8 },
+  dangerBtn: {
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEF2F2',
+    alignItems: 'center',
+  },
+  dangerBtnText: { color: '#DC2626', fontWeight: '700', fontSize: 14 },
 });

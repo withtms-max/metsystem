@@ -1,5 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { Customer, CustomerGrade } from '@metsystem/shared';
+import {
+  formatDistance,
+  haversineKm,
+  type Customer,
+  type CustomerGrade,
+} from '@metsystem/shared';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -11,10 +16,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CustomerMap } from '@/components/customer-map';
+import { CustomerMap, explodeCustomerPins, type CustomerPin } from '@/components/customer-map';
 import { CustomerMapSheet } from '@/components/customer-map-sheet';
 import { useCustomers } from '@/hooks/use-customers';
+import { useUserLocation } from '@/hooks/use-user-location';
 import { GradeColor, Palette, Radius } from '@/constants/theme';
+
+/** 지오펜싱 반경 (km) — 이 안에 있으면 "근처" */
+const GEOFENCE_RADIUS_KM = 3;
 
 /**
  * 지도 탭 (구 "동선")
@@ -28,6 +37,8 @@ import { GradeColor, Palette, Radius } from '@/constants/theme';
 export default function MapScreen() {
   const router = useRouter();
   const { customers, isLoading, reload } = useCustomers();
+  const { coords: myCoords, request: requestMyLocation, status: locationStatus } =
+    useUserLocation();
   const [gradeFilter, setGradeFilter] = useState<CustomerGrade | null>(null);
 
   // 탭 진입 시마다 최신 고객 목록 다시 가져오기 (새로고침 불필요)
@@ -37,7 +48,7 @@ export default function MapScreen() {
     }, [reload]),
   );
   const [regionFilter, setRegionFilter] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedPin, setSelectedPin] = useState<CustomerPin | null>(null);
 
   // 등급별 카운트
   const gradeCounts = useMemo(() => {
@@ -72,9 +83,26 @@ export default function MapScreen() {
     });
   }, [customers, gradeFilter, regionFilter]);
 
-  const pinnedCount = filtered.filter((c) => c.latitude != null && c.longitude != null).length;
-  const missingCoordsCount = filtered.length - pinnedCount;
-  const selected = selectedId ? customers.find((c) => c.id === selectedId) ?? null : null;
+  const pinCount = explodeCustomerPins(filtered).length;
+  const pinnedCustomerCount = filtered.filter(
+    (c) =>
+      (c.latitude != null && c.longitude != null) ||
+      (c.home_latitude != null && c.home_longitude != null) ||
+      (c.contract_latitude != null && c.contract_longitude != null),
+  ).length;
+  const missingCoordsCount = filtered.length - pinnedCustomerCount;
+
+  // 지오펜싱: 내 위치 기준 반경 내 핀 찾기
+  const nearby = useMemo(() => {
+    if (!myCoords) return [];
+    const allPins = explodeCustomerPins(filtered);
+    return allPins
+      .map((p) => ({ pin: p, distKm: haversineKm(myCoords, { lat: p.lat, lng: p.lng }) }))
+      .filter((x) => x.distKm <= GEOFENCE_RADIUS_KM)
+      .sort((a, b) => a.distKm - b.distKm);
+  }, [myCoords, filtered]);
+
+  const topNearbyGrade = nearby.find((x) => ['A', 'B'].includes(x.pin.customer.grade));
 
   if (isLoading) {
     return (
@@ -92,10 +120,19 @@ export default function MapScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.headerTitle}>지도</Text>
               <Text style={styles.headerSub}>
-                {pinnedCount}명 표시 중
+                {pinnedCustomerCount}명 · {pinCount}개 핀
                 {missingCoordsCount > 0 && ` · ${missingCoordsCount}명 주소 미등록`}
               </Text>
             </View>
+            <TouchableOpacity
+              style={[styles.refreshBtn, myCoords && styles.refreshBtnActive]}
+              onPress={requestMyLocation}>
+              <Ionicons
+                name="locate"
+                size={16}
+                color={myCoords ? Palette.primary : Palette.textSub}
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.refreshBtn}
               onPress={() => {
@@ -105,6 +142,41 @@ export default function MapScreen() {
               <Ionicons name="refresh" size={16} color={Palette.textSub} />
             </TouchableOpacity>
           </View>
+
+          {/* 지오펜싱 배너 */}
+          {locationStatus === 'requesting' && (
+            <View style={styles.geoBanner}>
+              <Ionicons name="locate" size={14} color={Palette.textSub} />
+              <Text style={styles.geoBannerText}>현재 위치 확인 중...</Text>
+            </View>
+          )}
+          {locationStatus === 'denied' && (
+            <View style={[styles.geoBanner, { backgroundColor: Palette.redBg }]}>
+              <Ionicons name="alert-circle" size={14} color={Palette.red} />
+              <Text style={[styles.geoBannerText, { color: Palette.red }]}>
+                위치 권한 거부됨 — 주소창 좌측 자물쇠 → 위치 허용
+              </Text>
+            </View>
+          )}
+          {myCoords && nearby.length > 0 && (
+            <View style={styles.geoBannerOk}>
+              <Ionicons name="navigate" size={14} color={Palette.primary} />
+              <Text style={styles.geoBannerOkText}>
+                {GEOFENCE_RADIUS_KM}km 안에 {nearby.length}명 ·{' '}
+                {topNearbyGrade
+                  ? `${topNearbyGrade.pin.customer.company ?? topNearbyGrade.pin.customer.name} (${topNearbyGrade.pin.customer.grade}급) ${formatDistance(topNearbyGrade.distKm)}`
+                  : `가장 가까운 ${formatDistance(nearby[0].distKm)}`}
+              </Text>
+            </View>
+          )}
+          {myCoords && nearby.length === 0 && (
+            <View style={styles.geoBanner}>
+              <Ionicons name="location-outline" size={14} color={Palette.textMuted} />
+              <Text style={styles.geoBannerText}>
+                {GEOFENCE_RADIUS_KM}km 안에 등록된 고객이 없어요
+              </Text>
+            </View>
+          )}
 
           {/* 등급 필터 */}
           <ScrollView
@@ -152,15 +224,20 @@ export default function MapScreen() {
         </View>
       </SafeAreaView>
 
-      {/* 지도 본체 */}
-      <CustomerMap customers={filtered} onPinPress={(id) => setSelectedId(id)} />
+      {/* 지도 본체 — 내 위치 있으면 그쪽으로 중심 + 파란 점 */}
+      <CustomerMap
+        customers={filtered}
+        onPinPress={(pin) => setSelectedPin(pin)}
+        center={myCoords ? { lat: myCoords.lat, lng: myCoords.lng } : undefined}
+        userLocation={myCoords ? { lat: myCoords.lat, lng: myCoords.lng } : null}
+      />
 
       {/* 부동산식 슬라이드업 */}
       <CustomerMapSheet
-        customer={selected}
-        onClose={() => setSelectedId(null)}
+        pin={selectedPin}
+        onClose={() => setSelectedPin(null)}
         onOpenDetail={(id) => {
-          setSelectedId(null);
+          setSelectedPin(null);
           router.push({ pathname: '/customer/[id]', params: { id } });
         }}
       />
@@ -214,7 +291,32 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.grayBg,
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 6,
   },
+  refreshBtnActive: { backgroundColor: Palette.primarySoft },
+
+  geoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Palette.grayBg,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: Radius.md,
+    marginTop: 6,
+  },
+  geoBannerText: { fontSize: 12, color: Palette.textSub, fontWeight: '500', flex: 1 },
+  geoBannerOk: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Palette.primarySoft,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: Radius.md,
+    marginTop: 6,
+  },
+  geoBannerOkText: { fontSize: 12, color: Palette.primaryDeep, fontWeight: '700', flex: 1 },
 
   chipRow: { gap: 6, paddingRight: 16 },
   chip: {

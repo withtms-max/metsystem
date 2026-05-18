@@ -1,3 +1,4 @@
+import { INDUSTRIES, type IndustryCode } from '@metsystem/shared';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -18,8 +19,6 @@ import { Palette, Radius } from '@/constants/theme';
 
 type Step = 'role' | 'salesperson' | 'manager';
 
-const INDUSTRIES = ['보험 GA', '부동산', '자동차', '제약', 'B2B 영업', '기타'];
-
 export default function OnboardingScreen() {
   const { finishOnboarding, signOut } = useAuth();
   const router = useRouter();
@@ -37,7 +36,7 @@ export default function OnboardingScreen() {
   const [phone, setPhone] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [orgName, setOrgName] = useState('');
-  const [industry, setIndustry] = useState<string>('보험 GA');
+  const [industry, setIndustry] = useState<IndustryCode>('insurance');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -207,16 +206,25 @@ export default function OnboardingScreen() {
                 </Field>
 
                 <Field label="업종">
+                  <Text style={styles.industryHint}>
+                    업종에 따라 고객 등록 화면·핀 종류가 달라져요
+                  </Text>
                   <View style={styles.industryRow}>
                     {INDUSTRIES.map((i) => (
                       <TouchableOpacity
-                        key={i}
+                        key={i.code}
                         activeOpacity={0.75}
-                        onPress={() => setIndustry(i)}
-                        style={[styles.industryChip, industry === i && styles.industryChipActive]}>
+                        onPress={() => setIndustry(i.code)}
+                        style={[
+                          styles.industryChip,
+                          industry === i.code && styles.industryChipActive,
+                        ]}>
                         <Text
-                          style={[styles.industryText, industry === i && styles.industryTextActive]}>
-                          {i}
+                          style={[
+                            styles.industryText,
+                            industry === i.code && styles.industryTextActive,
+                          ]}>
+                          {i.emoji} {i.label}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -327,6 +335,7 @@ const styles = StyleSheet.create({
   submitLoading: { opacity: 0.7 },
   submitText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
 
+  industryHint: { fontSize: 12, color: Palette.textMuted, marginBottom: 10 },
   industryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   industryChip: {
     paddingHorizontal: 16,
