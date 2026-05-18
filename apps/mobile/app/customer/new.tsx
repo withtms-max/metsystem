@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AddressSearchButton } from '@/components/address-search-button';
 import { useAuth } from '@/lib/auth-context';
 import { useCustomers } from '@/hooks/use-customers';
 
@@ -37,8 +38,11 @@ export default function NewCustomerScreen() {
   const [grade, setGrade] = useState<CustomerGrade>('D');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  /** Daum 검색으로 받아온 정확한 시군구 — 우선 사용 */
+  const [sigunguFromSearch, setSigunguFromSearch] = useState<string | null>(null);
 
-  const detectedRegion = extractRegionTag(address);
+  // 검색으로 얻은 시군구가 있으면 그것을 우선, 없으면 regex 폴백
+  const detectedRegion = sigunguFromSearch ?? extractRegionTag(address);
 
   const handleSubmit = async () => {
     setError(null);
@@ -135,10 +139,22 @@ export default function NewCustomerScreen() {
             placeholder="경기도 성남시 분당구 판교로..."
             placeholderTextColor="#94A3B8"
             value={address}
-            onChangeText={setAddress}
+            onChangeText={(t) => {
+              setAddress(t);
+              // 수동 편집 시 검색 결과 무효화
+              if (sigunguFromSearch) setSigunguFromSearch(null);
+            }}
+          />
+          <AddressSearchButton
+            onSelect={(r) => {
+              setAddress(r.roadAddress || r.jibunAddress);
+              setSigunguFromSearch(r.sigungu || null);
+            }}
           />
           {detectedRegion && (
-            <Text style={styles.detected}>📍 지역 자동 감지: {detectedRegion}</Text>
+            <Text style={styles.detected}>
+              📍 지역 {sigunguFromSearch ? '확인' : '자동 감지'}: {detectedRegion}
+            </Text>
           )}
 
           <Text style={styles.label}>등급</Text>
