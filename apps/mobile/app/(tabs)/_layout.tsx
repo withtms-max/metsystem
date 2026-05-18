@@ -62,6 +62,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="team"
+        options={{
+          title: '팀',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'people-circle' : 'people-circle-outline'}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="explore"
         options={{
           href: null,

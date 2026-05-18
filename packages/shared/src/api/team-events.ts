@@ -83,6 +83,7 @@ export function teamEventTypeLabel(t: TeamEventType): string {
       external: '외부 미팅',
       meal: '회식',
       announcement: '공지',
+      campaign: '시책',
       other: '기타',
     } as Record<TeamEventType, string>
   )[t] ?? '기타';
@@ -98,6 +99,7 @@ export function teamEventTypeIcon(t: TeamEventType): string {
       external: 'briefcase-outline',
       meal: 'restaurant-outline',
       announcement: 'megaphone-outline',
+      campaign: 'flag-outline',
       other: 'ellipse-outline',
     } as Record<TeamEventType, string>
   )[t] ?? 'ellipse-outline';
@@ -110,5 +112,68 @@ export const TEAM_EVENT_TYPES: TeamEventType[] = [
   'external',
   'meal',
   'announcement',
+  'campaign',
   'other',
 ];
+
+// ============================================
+// 공지사항 헬퍼
+// ============================================
+
+export async function listAnnouncements(
+  supabase: MetSupabaseClient,
+  limit = 20,
+): Promise<TeamEvent[]> {
+  const { data, error } = await supabase
+    .from('team_events')
+    .select('*')
+    .eq('event_type', 'announcement')
+    .order('event_date', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('[listAnnouncements] failed', error);
+    return [];
+  }
+  return (data ?? []) as TeamEvent[];
+}
+
+// ============================================
+// 시책(캠페인) 헬퍼
+// ============================================
+
+/** 진행 중인 시책 (오늘이 start_date ~ end_date 사이) */
+export async function listActiveCampaigns(
+  supabase: MetSupabaseClient,
+): Promise<TeamEvent[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('team_events')
+    .select('*')
+    .eq('event_type', 'campaign')
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .order('end_date', { ascending: true });
+  if (error) {
+    console.warn('[listActiveCampaigns] failed', error);
+    return [];
+  }
+  return (data ?? []) as TeamEvent[];
+}
+
+/** 전체 시책 (지난 것 + 진행 중 + 예정) */
+export async function listAllCampaigns(
+  supabase: MetSupabaseClient,
+  limit = 50,
+): Promise<TeamEvent[]> {
+  const { data, error } = await supabase
+    .from('team_events')
+    .select('*')
+    .eq('event_type', 'campaign')
+    .order('start_date', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('[listAllCampaigns] failed', error);
+    return [];
+  }
+  return (data ?? []) as TeamEvent[];
+}

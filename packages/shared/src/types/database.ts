@@ -38,7 +38,15 @@ export type TeamEventType =
   | 'external'
   | 'meal'
   | 'announcement'
+  | 'campaign'
   | 'other';
+
+export type CampaignMetric =
+  | 'contracts'   // 신규 계약 건수
+  | 'meetings'    // 미팅 건수
+  | 'ta_calls'    // 통화 건수
+  | 'amount_won'  // 거래 금액 (V2)
+  | 'custom';     // 수동 갱신
 
 export type ResourceCategory =
   | 'training'    // 교육 자료
@@ -174,6 +182,11 @@ export interface TeamEventRow {
   is_all_day: boolean;
   event_type: TeamEventType;
   description: string | null;
+  // 시책 전용
+  start_date: string | null;
+  end_date: string | null;
+  target_value: number | null;
+  target_metric: CampaignMetric | null;
   created_at: string;
   updated_at: string;
 }
@@ -303,6 +316,10 @@ export interface Database {
           is_all_day?: boolean;
           event_type: TeamEventType;
           description?: string | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          target_value?: number | null;
+          target_metric?: CampaignMetric | null;
           created_at?: string;
           updated_at?: string;
         };
