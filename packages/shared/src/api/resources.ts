@@ -144,15 +144,30 @@ export interface UploadFileInput {
 }
 
 /**
- * 자료 파일 업로드 — `{org_id}/{resource_id}/{filename}` 경로.
- * 호출 측에서 createResource → uploadResourceFile 순서로 진행.
+ * 자료 파일 업로드 — `{org_id}/{resource_id}/{safe_filename}` 경로.
+ *
+ * Supabase Storage 는 ASCII 안전 키만 허용 (한글 X).
+ * 한글 파일명은 확장자만 추출해서 'file.ext' 로 저장.
+ * 원본 이름은 file_name 컬럼에 별도 저장.
  */
 export async function uploadResourceFile(
   supabase: MetSupabaseClient,
   input: UploadFileInput,
 ): Promise<{ path: string }> {
-  const safe = input.fileName.replace(/[^\w.\-가-힣]/g, '_');
-  const path = `${input.organizationId}/${input.resourceId}/${safe}`;
+  // 확장자 추출
+  const lastDot = input.fileName.lastIndexOf('.');
+  const ext = lastDot > -1 ? input.fileName.slice(lastDot + 1).toLowerCase() : 'bin';
+  const baseName = lastDot > -1 ? input.fileName.slice(0, lastDot) : input.fileName;
+
+  // ASCII 안전 base 추출 — 영문/숫자/-_ 만
+  const asciiBase = baseName
+    .replace(/[^\w\-]/g, '') // 한글·공백·특수문자 제거
+    .slice(0, 40);
+  const safeBase = asciiBase || 'file';
+  const safeExt = ext.replace(/[^\w]/g, '');
+  const safeName = safeExt ? `${safeBase}.${safeExt}` : safeBase;
+
+  const path = `${input.organizationId}/${input.resourceId}/${safeName}`;
 
   const { error } = await supabase.storage
     .from('team-resources')
