@@ -95,7 +95,7 @@ export async function listPendingJoinRequests(
 ): Promise<PendingRequestWithUser[]> {
   const { data, error } = await supabase
     .from('organization_join_requests')
-    .select('*, users(name, email)')
+    .select('*, users!user_id(name, email)')
     .eq('status', 'pending')
     .order('requested_at', { ascending: true });
 
@@ -145,7 +145,7 @@ export async function listTeamMembers(
 ): Promise<TeamMember[]> {
   const { data, error } = await supabase
     .from('organization_memberships')
-    .select('*, users(id, name, email, phone, role)')
+    .select('*, users!user_id(id, name, email, phone, role)')
     .eq('organization_id', organizationId)
     .eq('status', 'active')
     .order('joined_at', { ascending: true });
@@ -250,6 +250,18 @@ export async function switchActiveTeam(
 ): Promise<void> {
   const { error } = await supabase.rpc('switch_active_team', {
     p_organization_id: organizationId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+  if (error) throw error;
+}
+
+/** 본인이 보낸 pending 신청 취소 */
+export async function cancelTeamJoin(
+  supabase: MetSupabaseClient,
+  requestId: string,
+): Promise<void> {
+  const { error } = await supabase.rpc('cancel_team_join', {
+    p_request_id: requestId,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
   if (error) throw error;

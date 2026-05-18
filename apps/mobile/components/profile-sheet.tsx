@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
+  cancelTeamJoin,
   getIndustry,
   leaveTeam,
   listMyJoinRequests,
@@ -97,6 +98,18 @@ export function ProfileSheet({ visible, onClose }: Props) {
       const err = e as { message?: string };
       if (typeof window !== 'undefined' && window.alert) {
         window.alert(err.message ?? '탈퇴 실패');
+      }
+    }
+  };
+
+  const handleCancelRequest = async (requestId: string) => {
+    try {
+      await cancelTeamJoin(supabase, requestId);
+      await reloadTeams();
+    } catch (e) {
+      const err = e as { message?: string };
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(err.message ?? '취소 실패');
       }
     }
   };
@@ -233,11 +246,31 @@ export function ProfileSheet({ visible, onClose }: Props) {
             )}
 
             {pendingRequests.length > 0 && (
-              <View style={styles.pendingBox}>
-                <Ionicons name="time-outline" size={12} color={Palette.orange} />
-                <Text style={styles.pendingText}>
-                  가입 신청 {pendingRequests.length}건 · 관리자 승인 대기 중
-                </Text>
+              <View style={styles.pendingList}>
+                <Text style={styles.pendingListLabel}>승인 대기 중</Text>
+                {pendingRequests.map((r) => (
+                  <View key={r.id} style={styles.pendingItem}>
+                    <Ionicons name="time-outline" size={13} color={Palette.orange} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.pendingItemTitle}>
+                        코드 {r.invite_code}
+                      </Text>
+                      <Text style={styles.pendingItemSub}>
+                        {new Date(r.requested_at).toLocaleDateString('ko-KR', {
+                          month: 'numeric',
+                          day: 'numeric',
+                        })}{' '}
+                        신청 · 관리자 승인 대기 중
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.cancelReqBtn}
+                      onPress={() => handleCancelRequest(r.id)}
+                      hitSlop={6}>
+                      <Text style={styles.cancelReqBtnText}>취소</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
               </View>
             )}
           </View>
@@ -446,17 +479,36 @@ const styles = StyleSheet.create({
   activePillText: { fontSize: 9, fontWeight: '700', color: '#FFFFFF' },
   teamIndustry: { fontSize: 10, color: Palette.textMuted, marginTop: 2 },
 
-  pendingBox: {
+  pendingList: { marginTop: 8, gap: 6 },
+  pendingListLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Palette.orange,
+    marginLeft: 4,
+    marginBottom: 2,
+  },
+  pendingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: '#FFF7ED',
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: Radius.md,
-    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
   },
-  pendingText: { fontSize: 11, color: Palette.orange, fontWeight: '600', flex: 1 },
+  pendingItemTitle: { fontSize: 12, fontWeight: '700', color: Palette.orange },
+  pendingItemSub: { fontSize: 10, color: '#9A3412', marginTop: 1 },
+  cancelReqBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radius.pill,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: Palette.orange,
+  },
+  cancelReqBtnText: { fontSize: 11, fontWeight: '700', color: Palette.orange },
 
   divider: { height: 1, backgroundColor: Palette.border, marginVertical: 4 },
 
