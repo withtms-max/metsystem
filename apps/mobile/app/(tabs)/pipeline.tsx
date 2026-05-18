@@ -132,7 +132,7 @@ export default function PipelineScreen() {
           {viewMode === 'board' && (
             <>
               <View style={styles.kpiRow}>
-                <KpiCell label="콜 예정" value={taTargetCount} />
+                <KpiCell label="통화 예정" value={taTargetCount} />
                 <View style={styles.kpiSep} />
                 <KpiCell label="미팅 예정" value={meetingScheduledCount} />
                 <View style={styles.kpiSep} />
@@ -141,7 +141,7 @@ export default function PipelineScreen() {
                 <KpiCell label="전체" value={cards.length} />
               </View>
 
-              {/* 빠른 콜 모드 진입 */}
+              {/* 빠른 통화 모드 진입 */}
               {taTargetCount > 0 && (
                 <TouchableOpacity
                   style={styles.swipeBtn}
@@ -151,7 +151,7 @@ export default function PipelineScreen() {
                     <Ionicons name="call" size={18} color="#FFFFFF" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.swipeBtnText}>빠른 콜 모드 시작</Text>
+                    <Text style={styles.swipeBtnText}>빠른 통화 모드 시작</Text>
                     <Text style={styles.swipeBtnSub}>
                       예정 {taTargetCount}명 · 60초 타이머 + 1분 멘트
                     </Text>

@@ -53,8 +53,8 @@ export const GradeColor = {
 
 // 칸반 스테이지
 export const StageStyle = {
-  ta_target:         { label: 'TA 대상',   bg: '#F2F4F6', fg: '#4E5968', accent: '#8B95A1' },
-  ta_done:           { label: 'TA 완료',   bg: '#E8F2FF', fg: '#1B64DA', accent: '#3182F6' },
+  ta_target:         { label: '통화 예정', bg: '#F2F4F6', fg: '#4E5968', accent: '#8B95A1' },
+  ta_done:           { label: '통화 완료', bg: '#E8F2FF', fg: '#1B64DA', accent: '#3182F6' },
   meeting_scheduled: { label: '미팅 예정', bg: '#FFF4E5', fg: '#D96B00', accent: '#FF7B00' },
   meeting_done:      { label: '미팅 완료', bg: '#EEF2FF', fg: '#4338CA', accent: '#6366F1' },
   contract:          { label: '계약',      bg: '#E6F9F1', fg: '#008F52', accent: '#00C471' },

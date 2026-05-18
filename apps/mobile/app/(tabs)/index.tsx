@@ -265,7 +265,7 @@ export default function HomeScreen() {
 
           <ActivityRow
             icon="call-outline"
-            label="TA 깐 횟수"
+            label="통화 건수"
             value={taDone}
             goal={taGoal}
             color={Palette.blue}

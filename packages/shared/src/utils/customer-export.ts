@@ -62,8 +62,8 @@ export interface PipelineExportRow {
 
 export function buildPipelineCsv(rows: PipelineExportRow[]): string {
   const stageToLabel: Record<string, string> = {
-    ta_target: '예정',
-    ta_done: 'TA완료',
+    ta_target: '통화 예정',
+    ta_done: '통화 완료',
     meeting_scheduled: '미팅예정',
     meeting_done: '미팅완료',
     contract: '계약',

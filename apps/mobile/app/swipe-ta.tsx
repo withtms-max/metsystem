@@ -180,9 +180,9 @@ export default function SwipeTAScreen() {
         </View>
         <View style={styles.emptyContent}>
           <Text style={styles.emptyEmoji}>📋</Text>
-          <Text style={styles.emptyTitle}>TA 대상이 없어요</Text>
+          <Text style={styles.emptyTitle}>통화할 분이 없어요</Text>
           <Text style={styles.emptySub}>
-            성과 탭에서 이번 달 TA 대상 고객을 먼저 추가해주세요
+            성과 탭에서 이번 달 통화 예정 고객을 먼저 추가해주세요
           </Text>
           <TouchableOpacity
             style={styles.emptyButton}
@@ -204,7 +204,7 @@ export default function SwipeTAScreen() {
         </View>
         <View style={styles.emptyContent}>
           <Text style={styles.emptyEmoji}>🎉</Text>
-          <Text style={styles.emptyTitle}>오늘 TA 끝!</Text>
+          <Text style={styles.emptyTitle}>오늘 통화 끝!</Text>
           <Text style={styles.emptySub}>
             완료 {doneCount}건 · 스킵 {skipCount}건{'\n'}수고하셨어요!
           </Text>

@@ -137,8 +137,8 @@ export default function CustomerDetailScreen() {
   };
 
   const stageLabel: Record<string, string> = {
-    ta_target: 'TA 대상',
-    ta_done: 'TA 완료',
+    ta_target: '통화 예정',
+    ta_done: '통화 완료',
     meeting_scheduled: '미팅 예정',
     meeting_done: '미팅 완료',
     contract: '계약',
@@ -245,7 +245,7 @@ export default function CustomerDetailScreen() {
                   <>
                     <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
                     <Text style={styles.pipelineBtnText}>
-                      {formatMonthKeyKorean(monthKey)} 영업판에 추가 (TA 대상)
+                      {formatMonthKeyKorean(monthKey)} 영업판에 추가 (통화 예정)
                     </Text>
                   </>
                 )}
@@ -464,7 +464,7 @@ function activityIcon(type: string): keyof typeof Ionicons.glyphMap {
 function activityLabel(type: string): string {
   return (
     {
-      ta_call: '전화 (TA)',
+      ta_call: '통화',
       meeting: '미팅',
       memo: '메모',
       message: '메시지',
