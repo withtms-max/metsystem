@@ -41,14 +41,19 @@ export default function OnboardingScreen() {
   // 개인 정보
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  /** 첫 화면에서 받는 초대 코드 (선택) — 있으면 가입과 동시에 팀 신청 */
+  const [initialCode, setInitialCode] = useState('');
 
   // 팀 만들기
   const [teamName, setTeamName] = useState('');
   const [industry, setIndustry] = useState<IndustryCode>('insurance');
 
-  // 팀 참여
+  // 팀 참여 (별도 화면)
   const [inviteCode, setInviteCode] = useState('');
   const [joinMessage, setJoinMessage] = useState('');
+
+  /** 가입 완료 안내 (초대 코드 직접 입력한 경우) */
+  const [joinSuccess, setJoinSuccess] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,7 +68,7 @@ export default function OnboardingScreen() {
   };
 
   // ============================================
-  // Step 1: 개인 가입
+  // Step 1: 개인 가입 (+ 선택: 초대 코드 동시 입력)
   // ============================================
   const handleSavePersonal = async () => {
     setError(null);
@@ -71,10 +76,29 @@ export default function OnboardingScreen() {
     if (!authUser) return setError('로그인이 필요해요');
     setLoading(true);
     try {
+      // 1) 개인 가입
       await completePersonalSignup(supabase, authUser.id, authUser.email ?? null, {
         name: name.trim(),
         phone: phone.trim() || undefined,
       });
+
+      // 2) 초대 코드 있으면 곧바로 팀 가입 신청
+      if (initialCode.trim()) {
+        try {
+          await requestTeamJoin(supabase, initialCode.trim().toUpperCase());
+          await refreshProfile();
+          setJoinSuccess(true);
+          return;
+        } catch (e) {
+          // 가입은 됐지만 코드가 잘못된 경우 — 팀 선택 단계로 진행
+          const err = e as { message?: string };
+          await refreshProfile();
+          setError(`가입은 완료 · 코드 확인 필요: ${err.message ?? '알 수 없음'}`);
+          setStep('team_pick');
+          return;
+        }
+      }
+
       await refreshProfile();
       setStep('team_pick');
     } catch (e) {
@@ -143,11 +167,11 @@ export default function OnboardingScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          {/* Step 1: 개인 정보 */}
-          {step === 'personal' && (
+          {/* Step 1: 개인 정보 + 선택: 초대 코드 */}
+          {step === 'personal' && !joinSuccess && (
             <View>
               <Text style={styles.title}>안녕하세요!{'\n'}어떻게 부르면 될까요?</Text>
-              <Text style={styles.subtitle}>먼저 본인 정보를 입력해주세요</Text>
+              <Text style={styles.subtitle}>본인 정보를 입력해주세요</Text>
 
               <View style={styles.form}>
                 <Field label="이름">
@@ -172,6 +196,21 @@ export default function OnboardingScreen() {
                   />
                 </Field>
 
+                <Field label="팀 초대 코드 (선택)">
+                  <Text style={styles.fieldHint}>
+                    이미 받은 6자리 코드가 있으면 입력해주세요. 가입과 동시에 팀 신청까지 됩니다.
+                  </Text>
+                  <TextInput
+                    style={[styles.input, styles.inputCode]}
+                    placeholder="ABC123"
+                    placeholderTextColor={Palette.textMuted}
+                    autoCapitalize="characters"
+                    value={initialCode}
+                    onChangeText={(t) => setInitialCode(t.toUpperCase())}
+                    maxLength={8}
+                  />
+                </Field>
+
                 {error && <ErrorBox text={error} />}
 
                 <TouchableOpacity
@@ -181,13 +220,35 @@ export default function OnboardingScreen() {
                   {loading ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.submitText}>다음</Text>
+                    <Text style={styles.submitText}>
+                      {initialCode.trim() ? '가입 + 팀 신청' : '다음'}
+                    </Text>
                   )}
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity onPress={handleSwitchAccount} style={styles.signOut}>
                 <Text style={styles.signOutText}>다른 계정으로 다시</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 가입 + 신청 성공 — 안내 후 앱 진입 */}
+          {step === 'personal' && joinSuccess && (
+            <View style={styles.successBox}>
+              <View style={styles.successIcon}>
+                <Ionicons name="checkmark" size={36} color="#FFFFFF" />
+              </View>
+              <Text style={styles.title}>가입 완료!</Text>
+              <Text style={styles.subtitle}>
+                팀 가입 신청이 들어갔어요. 관리자가 승인하면 활성 팀으로 자동 전환돼요.
+                {'\n\n'}그동안 개인 모드로 앱을 사용할 수 있어요.
+              </Text>
+              <TouchableOpacity
+                style={styles.submit}
+                onPress={handleSkipTeam}
+                activeOpacity={0.85}>
+                <Text style={styles.submitText}>앱 시작하기</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -422,6 +483,18 @@ const styles = StyleSheet.create({
 
   form: { gap: 18 },
   label: { fontSize: 13, fontWeight: '700', color: Palette.textSub, marginBottom: 8 },
+  fieldHint: { fontSize: 11, color: Palette.textMuted, marginTop: -4, marginBottom: 8, lineHeight: 16 },
+
+  successBox: { alignItems: 'center', paddingTop: 40, gap: 14 },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Palette.green,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   input: {
     backgroundColor: Palette.card,
     paddingHorizontal: 16,
