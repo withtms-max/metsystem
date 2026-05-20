@@ -1,10 +1,20 @@
+/**
+ * 홈 — 간결한 비서 카드 구조
+ *
+ * 구조:
+ *  1. 헤더 (인사 + 날짜 + 알림·프로필)
+ *  2. HERO 카드 (오늘 가장 중요한 한 가지)
+ *  3. 오늘 KPI 4칸 (통화·미팅·계약·신규)
+ *  4. 이번 달 한 줄 진척
+ *  5. 빠른 액션 3개
+ */
+
 import { Ionicons } from '@expo/vector-icons';
 import {
   currentMonthKey,
   listStaleCustomers,
   listUpcomingActions,
   type Customer,
-  type CustomerGrade,
   type PipelineCardWithCustomer,
 } from '@metsystem/shared';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -17,7 +27,7 @@ import { showNotification } from '@/lib/web-notifications';
 import { useDailyCounts } from '@/hooks/use-daily-counts';
 import { usePendingRequests } from '@/hooks/use-pending-requests';
 import { usePipeline } from '@/hooks/use-pipeline';
-import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
+import { Palette, Radius, Shadow } from '@/constants/theme';
 import { ProfileSheet } from '@/components/profile-sheet';
 
 function formatToday(): string {
@@ -28,12 +38,23 @@ function formatToday(): string {
 
 function greetByTime(name: string): string {
   const h = new Date().getHours();
-  if (h < 6) return `${name}님, 아직 안 주무세요?`;
-  if (h < 10) return `${name}님, 오늘도 시작해볼까요`;
-  if (h < 14) return `${name}님, 점심 챙기셨어요?`;
+  if (h < 6) return `${name}님, 아직이세요?`;
+  if (h < 10) return `${name}님, 좋은 아침`;
+  if (h < 14) return `${name}님, 오늘 화이팅`;
   if (h < 18) return `${name}님, 오후도 한 번 더`;
   if (h < 21) return `${name}님, 마무리 잘 챙겨요`;
   return `${name}님, 오늘 고생했어요`;
+}
+
+interface HeroCardData {
+  kind: 'pending' | 'next_action' | 'stale' | 'upcoming' | 'empty';
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  iconBg: string;
+  title: string;
+  body: string;
+  cta: string;
+  onPress: () => void;
 }
 
 export default function HomeScreen() {
@@ -45,44 +66,45 @@ export default function HomeScreen() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [staleCustomers, setStaleCustomers] = useState<Customer[]>([]);
   const [upcomingActions, setUpcomingActions] = useState<Customer[]>([]);
-  const [gradeFocus, setGradeFocus] = useState<CustomerGrade | null>(null);
+
+  const userName = profile?.name ?? '영업맨';
+  const meetingsDone = counts.meeting;
+  const taDone = counts.ta;
+  const contractDone = counts.contract;
+
+  const monthlyMeetingGoal = 15;
+  const monthlyMeetingDone = useMemo(
+    () => byStage('meeting_done').length + byStage('contract').length,
+    [byStage],
+  );
+  const monthProgress = Math.min(100, (monthlyMeetingDone / monthlyMeetingGoal) * 100);
+
+  // 오늘의 미팅 (참고용)
+  const todayMeetings: PipelineCardWithCustomer[] = byStage('meeting_scheduled').slice(0, 3);
 
   const reloadIntel = useCallback(async () => {
     try {
-      const grades = gradeFocus ? [gradeFocus] : (['A', 'B'] as CustomerGrade[]);
       const [stale, actions] = await Promise.all([
-        listStaleCustomers(supabase, 90, grades),
+        listStaleCustomers(supabase, 90, ['A', 'B']),
         listUpcomingActions(supabase, 7),
       ]);
       setStaleCustomers(stale);
-      const filteredActions = gradeFocus
-        ? actions.filter((c) => c.grade === gradeFocus)
-        : actions;
-      setUpcomingActions(filteredActions);
+      setUpcomingActions(actions);
 
-      // 브라우저 알림 트리거 — 오늘 액션 + 90일 무연락 (각 24시간 1회)
+      // 브라우저 알림 (24시간 dedup)
       const today = new Date().toISOString().slice(0, 10);
-      const todayActions = filteredActions.filter((c) => c.next_action_date === today);
+      const todayActions = actions.filter((c) => c.next_action_date === today);
       if (todayActions.length > 0) {
         const first = todayActions[0];
         showNotification(`오늘 ${todayActions.length}건 액션 예정`, {
-          body: `${first.name} · ${first.next_action_text ?? ''}${
-            todayActions.length > 1 ? ` 외 ${todayActions.length - 1}건` : ''
-          }`,
+          body: `${first.name} · ${first.next_action_text ?? ''}`,
           dedupKey: `actions-today-${today}`,
-        });
-      }
-      if (stale.length > 0) {
-        const first = stale[0];
-        showNotification(`A·B급 ${stale.length}명 90일+ 무연락`, {
-          body: `${first.grade}급 ${first.name} 부터 챙겨보세요`,
-          dedupKey: `stale-${today}`,
         });
       }
     } catch (e) {
       console.warn('[home] intel fetch failed', e);
     }
-  }, [gradeFocus]);
+  }, []);
 
   useEffect(() => {
     void reloadIntel();
@@ -95,49 +117,105 @@ export default function HomeScreen() {
     }, [reloadIntel, refreshPending]),
   );
 
-  // 가입 신청 대기 시 브라우저 알림 (24시간 dedup)
-  useEffect(() => {
+  // HERO 카드 선택 — 우선순위
+  const heroCard: HeroCardData = useMemo(() => {
+    // 1순위: 가입 신청 대기 (관리자)
     if (pendingCount > 0) {
-      const today = new Date().toISOString().slice(0, 10);
-      showNotification(`팀 가입 신청 ${pendingCount}건 대기 중`, {
-        body: '팀 탭에서 승인·거절할 수 있어요',
-        dedupKey: `pending-requests-${today}`,
-        onClick: () => router.push('/(tabs)/team' as never),
-      });
+      return {
+        kind: 'pending',
+        icon: 'person-add',
+        iconColor: Palette.red,
+        iconBg: '#FEF2F2',
+        title: `팀 가입 신청 ${pendingCount}건`,
+        body: '관리자 승인을 기다리고 있어요',
+        cta: '승인하러 가기',
+        onPress: () => router.push('/(tabs)/team' as never),
+      };
     }
-  }, [pendingCount, router]);
 
-  const userName = profile?.name ?? '영업맨';
-  const meetingsDone = counts.meeting;
-  const meetingsGoal = 3;
-  const taDone = counts.ta;
-  const taGoal = 10;
+    // 2순위: 오늘 액션
+    const today = new Date().toISOString().slice(0, 10);
+    const todayAction = upcomingActions.find((c) => c.next_action_date === today);
+    if (todayAction) {
+      return {
+        kind: 'next_action',
+        icon: 'flag',
+        iconColor: Palette.primary,
+        iconBg: Palette.primarySoft,
+        title: todayAction.next_action_text ?? '오늘 액션',
+        body: `${todayAction.company ?? todayAction.name} · 오늘 예정`,
+        cta: '시작하기',
+        onPress: () =>
+          router.push({ pathname: '/customer/[id]', params: { id: todayAction.id } }),
+      };
+    }
 
-  const monthlyMeetingGoal = 15;
-  const monthlyMeetingDone = useMemo(
-    () => byStage('meeting_done').length + byStage('contract').length,
-    [byStage],
-  );
-  const monthProgress = Math.min(100, (monthlyMeetingDone / monthlyMeetingGoal) * 100);
+    // 3순위: 90일+ 무연락
+    if (staleCustomers.length > 0) {
+      const first = staleCustomers[0];
+      return {
+        kind: 'stale',
+        icon: 'time',
+        iconColor: Palette.orange,
+        iconBg: Palette.orangeBg,
+        title: `${first.grade}급 ${first.name}님, 한 통 어때요?`,
+        body:
+          staleCustomers.length > 1
+            ? `90일 이상 무연락 ${staleCustomers.length}명 중`
+            : '90일 이상 무연락',
+        cta: '연락하기',
+        onPress: () =>
+          router.push({ pathname: '/customer/[id]', params: { id: first.id } }),
+      };
+    }
 
-  // 오늘 만날 미팅 (meeting_scheduled 단계의 카드들)
-  const todayMeetings: PipelineCardWithCustomer[] = byStage('meeting_scheduled').slice(0, 3);
+    // 4순위: 이번 주 액션
+    if (upcomingActions.length > 0) {
+      const first = upcomingActions[0];
+      return {
+        kind: 'upcoming',
+        icon: 'calendar',
+        iconColor: Palette.green,
+        iconBg: Palette.greenBg,
+        title: first.next_action_text ?? '예정된 액션',
+        body: `${first.next_action_date} · ${first.company ?? first.name}`,
+        cta: '확인',
+        onPress: () =>
+          router.push({ pathname: '/customer/[id]', params: { id: first.id } }),
+      };
+    }
+
+    // 5순위 (빈 상태): 새 고객 추가 유도
+    return {
+      kind: 'empty',
+      icon: 'add-circle',
+      iconColor: Palette.primary,
+      iconBg: Palette.primarySoft,
+      title: '오늘 누구를 챙길까요?',
+      body: '고객을 등록하면 자동으로 챙겨드려요',
+      cta: '고객 추가',
+      onPress: () => router.push('/customer/new' as never),
+    };
+  }, [pendingCount, upcomingActions, staleCustomers, router]);
 
   return (
     <View style={styles.container}>
-      {/* Teal 헤더 */}
+      {/* 헤더 — 인사 + 날짜 + 우측 아이콘 */}
       <SafeAreaView edges={['top']} style={styles.headerWrap}>
-        <View style={styles.headerInner}>
-          <View>
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{greetByTime(userName)}</Text>
-            <Text style={styles.subGreeting}>{formatToday()}</Text>
+            <Text style={styles.date}>{formatToday()}</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity style={styles.iconBtn} hitSlop={6}>
               <Ionicons name="notifications-outline" size={20} color={Palette.textMain} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.avatarBtn} onPress={() => setProfileOpen(true)}>
-              <Text style={styles.avatarBtnText}>{userName.slice(0, 1)}</Text>
+            <TouchableOpacity
+              style={styles.avatar}
+              onPress={() => setProfileOpen(true)}
+              activeOpacity={0.8}>
+              <Text style={styles.avatarText}>{userName.slice(0, 1)}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -146,279 +224,104 @@ export default function HomeScreen() {
       <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* 등급 포커스 칩 — 정보 과부하 방지 */}
-        <View style={styles.focusRow}>
-          <Text style={styles.focusLabel}>오늘 집중:</Text>
-          <TouchableOpacity
-            style={[styles.focusChip, gradeFocus === null && styles.focusChipActive]}
-            onPress={() => setGradeFocus(null)}>
-            <Text
-              style={[
-                styles.focusChipText,
-                gradeFocus === null && styles.focusChipTextActive,
-              ]}>
-              전체
+        {/* ============================================ */}
+        {/* HERO — 오늘 가장 중요한 한 가지              */}
+        {/* ============================================ */}
+        <TouchableOpacity
+          style={styles.hero}
+          onPress={heroCard.onPress}
+          activeOpacity={0.9}>
+          <View style={[styles.heroIcon, { backgroundColor: heroCard.iconBg }]}>
+            <Ionicons name={heroCard.icon} size={22} color={heroCard.iconColor} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroTitle} numberOfLines={1}>
+              {heroCard.title}
             </Text>
-          </TouchableOpacity>
-          {(['A', 'B', 'C', 'D'] as CustomerGrade[]).map((g) => {
-            const color = GradeColor[g];
-            const active = gradeFocus === g;
-            return (
-              <TouchableOpacity
-                key={g}
-                style={[
-                  styles.focusChip,
-                  active && { backgroundColor: color.bg, borderColor: color.dot },
-                ]}
-                onPress={() => setGradeFocus(active ? null : g)}>
-                <View style={[styles.focusChipDot, { backgroundColor: color.dot }]} />
-                <Text
-                  style={[
-                    styles.focusChipText,
-                    active && { color: color.fg, fontWeight: '700' },
-                  ]}>
-                  {g}급
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* 👥 관리자: 가입 신청 대기 */}
-        {pendingCount > 0 && (
-          <TouchableOpacity
-            style={styles.pendingHomeBanner}
-            onPress={() => router.push('/(tabs)/team' as never)}
-            activeOpacity={0.85}>
-            <View style={styles.pendingHomeIcon}>
-              <Ionicons name="person-add" size={14} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pendingHomeTitle}>
-                팀 가입 신청 {pendingCount}건 대기
-              </Text>
-              <Text style={styles.pendingHomeSub}>팀 탭에서 승인·거절</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={Palette.red} />
-          </TouchableOpacity>
-        )}
-
-        {/* 🎯 다음 7일 액션 — 까먹지 말기 */}
-        {upcomingActions.length > 0 && (
-          <TouchableOpacity
-            style={styles.actionBanner}
-            onPress={() =>
-              router.push({
-                pathname: '/customer/[id]',
-                params: { id: upcomingActions[0].id },
-              })
-            }>
-            <View style={styles.actionIcon}>
-              <Ionicons name="flag" size={14} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionTitle}>
-                {upcomingActions[0].next_action_date} · {upcomingActions[0].name} ·{' '}
-                {upcomingActions[0].next_action_text}
-              </Text>
-              {upcomingActions.length > 1 && (
-                <Text style={styles.actionSub}>+{upcomingActions.length - 1}건 더</Text>
-              )}
-            </View>
+            <Text style={styles.heroBody} numberOfLines={1}>
+              {heroCard.body}
+            </Text>
+          </View>
+          <View style={styles.heroCta}>
+            <Text style={styles.heroCtaText}>{heroCard.cta}</Text>
             <Ionicons name="chevron-forward" size={14} color={Palette.primary} />
-          </TouchableOpacity>
-        )}
-
-        {/* ⏰ 90일 무연락 — A·B급 위주 */}
-        {staleCustomers.length > 0 && (
-          <TouchableOpacity
-            style={styles.staleBanner}
-            onPress={() =>
-              router.push({
-                pathname: '/customer/[id]',
-                params: { id: staleCustomers[0].id },
-              })
-            }>
-            <View style={[styles.actionIcon, { backgroundColor: Palette.orange }]}>
-              <Ionicons name="time" size={14} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.staleTitle}>
-                {staleCustomers.length}명 90일 이상 무연락 — {staleCustomers[0].grade}급{' '}
-                {staleCustomers[0].name}
-              </Text>
-              <Text style={styles.staleSub}>이탈 전에 한 통 깔아볼까요?</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={14} color={Palette.orange} />
-          </TouchableOpacity>
-        )}
-
-        {/* 오늘의 미팅 카드 */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>오늘 만날 사람</Text>
-            <Text style={styles.cardCount}>
-              {meetingsDone}/{meetingsGoal} 완료 · 예정 {todayMeetings.length}건
-            </Text>
           </View>
+        </TouchableOpacity>
 
-          {todayMeetings.length === 0 ? (
-            <View style={styles.emptyInline}>
-              <Text style={styles.emptyText}>오늘 잡힌 약속이 없네요</Text>
-              <Text style={styles.emptyHint}>영업판에서 한 명 끌어와봐요</Text>
-            </View>
-          ) : (
-            todayMeetings.map((m, i) => (
-              <View key={m.id} style={[styles.meetingRow, i > 0 && styles.meetingDivider]}>
-                <Text style={styles.meetingTime}>{['10:00', '14:00', '16:00'][i] ?? '—'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.meetingTitle}>{m.customer?.company ?? m.customer?.name ?? '—'}</Text>
-                  <Text style={styles.meetingSub}>{m.customer?.name ?? ''} · {m.customer?.region_tag ?? ''}</Text>
-                </View>
-                <View style={styles.statusChip}>
-                  <Text style={styles.statusChipText}>예정</Text>
-                </View>
-              </View>
-            ))
-          )}
-
-          <TouchableOpacity
-            style={styles.cardFooter}
-            onPress={() => router.push('/(tabs)/pipeline')}>
-            <Text style={styles.cardFooterText}>이번 달 전체 보기</Text>
-            <Ionicons name="chevron-forward" size={14} color={Palette.textSub} />
-          </TouchableOpacity>
+        {/* ============================================ */}
+        {/* 오늘 KPI                                     */}
+        {/* ============================================ */}
+        <Text style={styles.sectionLabel}>오늘</Text>
+        <View style={styles.kpiRow}>
+          <KpiTile label="통화" value={taDone} color={Palette.blue} />
+          <KpiTile label="미팅" value={meetingsDone} color={Palette.green} />
+          <KpiTile label="계약" value={contractDone} color={Palette.orange} />
+          <KpiTile label="예정" value={todayMeetings.length} color={Palette.textSub} />
         </View>
 
-        {/* 오늘 얼마나 깠나 */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>오늘 얼마나 움직였나요</Text>
-            <Text style={styles.cardMeta}>{timeNow()} 기준</Text>
-          </View>
-
-          <ActivityRow
-            icon="call-outline"
-            label="통화 건수"
-            value={taDone}
-            goal={taGoal}
-            color={Palette.blue}
-          />
-          <ActivityRow
-            icon="people-outline"
-            label="만난 사람"
-            value={meetingsDone}
-            goal={meetingsGoal}
-            color={Palette.primary}
-          />
-        </View>
-
-        {/* 이번 달 */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>이번 달, 어디까지 왔나</Text>
-            <Text style={styles.cardMeta}>{timeNow()} 기준</Text>
-          </View>
-
-          <View style={styles.targetRow}>
-            <Text style={styles.targetLabel}>만나기로 한 사람</Text>
-            <Text style={styles.targetValue}>
-              <Text style={styles.targetBig}>{monthlyMeetingDone}</Text> / {monthlyMeetingGoal}명
+        {/* ============================================ */}
+        {/* 이번 달 진척 — 단일 컴팩트 카드              */}
+        {/* ============================================ */}
+        <TouchableOpacity
+          style={styles.monthCard}
+          onPress={() => router.push('/(tabs)/pipeline' as never)}
+          activeOpacity={0.85}>
+          <View style={styles.monthRow}>
+            <Text style={styles.monthLabel}>이번 달 미팅</Text>
+            <Text style={styles.monthValue}>
+              <Text style={styles.monthBig}>{monthlyMeetingDone}</Text>
+              <Text style={styles.monthGoal}> / {monthlyMeetingGoal}</Text>
             </Text>
           </View>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${monthProgress}%` }]} />
           </View>
-          <Text style={styles.progressPercent}>{Math.round(monthProgress)}%</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={() => router.push('/(tabs)/pipeline')}>
-            <Text style={styles.primaryBtnText}>영업판 펼쳐보기</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 빠른 메뉴 — 4 columns */}
-        <View style={styles.quickGrid}>
-          <QuickItem
-            icon="person-add-outline"
-            label="명함 추가"
-            onPress={() => router.push('/customer/new')}
+        {/* ============================================ */}
+        {/* 빠른 액션 3개                                 */}
+        {/* ============================================ */}
+        <View style={styles.quickRow}>
+          <QuickTile
+            icon="person-add"
+            label="고객 추가"
+            onPress={() => router.push('/customer/new' as never)}
           />
-          <QuickItem
-            icon="people-outline"
-            label="내 고객"
-            onPress={() => router.push('/(tabs)/customers')}
-          />
-          <QuickItem
-            icon="folder-outline"
+          <QuickTile
+            icon="folder"
             label="자료실"
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onPress={() => router.push('/resources' as any)}
           />
-          <QuickItem icon="notifications-outline" label="알림" onPress={() => {}} />
+          <QuickTile
+            icon="people-circle"
+            label="팀"
+            onPress={() => router.push('/(tabs)/team' as never)}
+          />
         </View>
-
-        {/* 알림 카드 */}
-        <TouchableOpacity style={styles.noticeCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.noticeTitle}>오늘 한 줄</Text>
-            <Text style={styles.noticeSub}>
-              {counts.contract > 0
-                ? `계약 ${counts.contract}건 — 오늘 진짜 잘 하셨어요`
-                : counts.meeting >= 3
-                  ? '오늘 목표 다 챙겼어요. 수고했어요'
-                  : counts.meeting > 0
-                    ? '잘 가고 있어요. 한 명만 더!'
-                    : '아직 조용해요. 한 통 깔아볼까요?'}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={Palette.textMuted} />
-        </TouchableOpacity>
-
       </ScrollView>
     </View>
   );
 }
 
-function timeNow(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-function ActivityRow({
-  icon,
+function KpiTile({
   label,
   value,
-  goal,
   color,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: number;
-  goal: number;
   color: string;
 }) {
-  const percent = Math.min(100, (value / goal) * 100);
   return (
-    <View style={styles.activityRow}>
-      <View style={styles.activityLabelRow}>
-        <View style={[styles.activityIcon, { backgroundColor: color + '15' }]}>
-          <Ionicons name={icon} size={14} color={color} />
-        </View>
-        <Text style={styles.activityLabel}>{label}</Text>
-        <Text style={styles.activityValue}>
-          {value} <Text style={styles.activityGoal}>/ {goal}</Text>
-        </Text>
-      </View>
-      <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: `${percent}%`, backgroundColor: color }]} />
-      </View>
+    <View style={styles.kpiTile}>
+      <Text style={[styles.kpiValue, { color }]}>{value}</Text>
+      <Text style={styles.kpiLabel}>{label}</Text>
     </View>
   );
 }
 
-function QuickItem({
+function QuickTile({
   icon,
   label,
   onPress,
@@ -428,7 +331,7 @@ function QuickItem({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.quickItem} onPress={onPress}>
+    <TouchableOpacity style={styles.quickTile} onPress={onPress} activeOpacity={0.85}>
       <View style={styles.quickIcon}>
         <Ionicons name={icon} size={20} color={Palette.primary} />
       </View>
@@ -440,26 +343,17 @@ function QuickItem({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Palette.bg },
 
-  // Header — Toss style light
+  // === Header ===
   headerWrap: { backgroundColor: Palette.bg },
-  headerInner: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 10,
-    paddingTop: 8,
+    paddingTop: 10,
+    paddingBottom: 16,
   },
   greeting: { color: Palette.textMain, fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
-  subGreeting: { color: Palette.textSub, fontSize: 12, marginTop: 2, fontWeight: '500' },
-  bellBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Palette.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  date: { color: Palette.textSub, fontSize: 12, marginTop: 3, fontWeight: '500' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn: {
     width: 36,
@@ -469,7 +363,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarBtn: {
+  avatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -477,230 +371,119 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarBtnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
+  avatarText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
 
-  scroll: { padding: 12, paddingTop: 4 },
+  // === Scroll body ===
+  scroll: { paddingHorizontal: 16, paddingBottom: 32 },
 
-  // Cards — 컴팩트
-  card: {
+  // === HERO Card ===
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Palette.card,
     borderRadius: Radius.lg,
-    padding: 14,
-    marginBottom: 8,
+    padding: 16,
+    gap: 14,
+    marginBottom: 20,
     ...Shadow.card,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
+  heroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: Palette.textMain, letterSpacing: -0.2 },
-  cardCount: { fontSize: 11, color: Palette.textSub, fontWeight: '500' },
-  cardMeta: { fontSize: 10, color: Palette.textMuted },
-
-  // Meetings
-  meetingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, gap: 10 },
-  meetingDivider: { borderTopWidth: 1, borderTopColor: Palette.border },
-  meetingTime: {
-    fontSize: 12,
+  heroTitle: {
+    fontSize: 15,
     fontWeight: '700',
     color: Palette.textMain,
-    width: 42,
+    letterSpacing: -0.2,
   },
-  meetingTitle: { fontSize: 13, fontWeight: '600', color: Palette.textMain },
-  meetingSub: { fontSize: 11, color: Palette.textSub, marginTop: 1 },
-  statusChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.primarySoft,
-  },
-  statusChipText: { fontSize: 10, fontWeight: '700', color: Palette.primaryDeep },
-
-  emptyInline: { paddingVertical: 12, alignItems: 'center' },
-  emptyText: { color: Palette.textSub, fontSize: 12, fontWeight: '500' },
-  emptyHint: { color: Palette.textMuted, fontSize: 10, marginTop: 2 },
-
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 4,
-    paddingTop: 8,
-    marginTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: Palette.border,
-  },
-  cardFooterText: { fontSize: 12, color: Palette.textSub, fontWeight: '500' },
-
-  // Activity
-  activityRow: { marginBottom: 8 },
-  activityLabelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  activityIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 7,
-  },
-  activityLabel: { flex: 1, fontSize: 12, color: Palette.textMain, fontWeight: '500' },
-  activityValue: { fontSize: 14, fontWeight: '700', color: Palette.textMain },
-  activityGoal: { fontSize: 11, color: Palette.textMuted, fontWeight: '400' },
-
-  progressBar: {
-    height: 5,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.grayBg,
-    overflow: 'hidden',
-  },
-  progressFill: { height: '100%', backgroundColor: Palette.primary, borderRadius: Radius.pill },
-  progressPercent: {
-    textAlign: 'right',
-    marginTop: 4,
-    fontSize: 11,
+  heroBody: {
+    fontSize: 12,
     color: Palette.textSub,
-    fontWeight: '500',
+    marginTop: 3,
   },
-
-  // Target
-  targetRow: {
+  heroCta: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 6,
-  },
-  targetLabel: { fontSize: 12, color: Palette.textSub, fontWeight: '500' },
-  targetValue: { fontSize: 12, color: Palette.textSub },
-  targetBig: { fontSize: 18, fontWeight: '700', color: Palette.textMain },
-
-  primaryBtn: {
-    marginTop: 10,
-    height: 38,
-    borderRadius: Radius.md,
-    backgroundColor: Palette.primary,
-    justifyContent: 'center',
     alignItems: 'center',
+    gap: 2,
+    paddingLeft: 8,
   },
-  primaryBtnText: { color: '#FFFFFF', fontWeight: '600', fontSize: 13 },
+  heroCtaText: { fontSize: 12, color: Palette.primary, fontWeight: '700' },
 
-  // Quick grid
-  quickGrid: {
-    flexDirection: 'row',
-    gap: 6,
+  // === Section label ===
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Palette.textSub,
     marginBottom: 8,
+    marginLeft: 4,
   },
-  quickItem: {
+
+  // === KPI tiles ===
+  kpiRow: { flexDirection: 'row', gap: 6, marginBottom: 18 },
+  kpiTile: {
     flex: 1,
     backgroundColor: Palette.card,
     borderRadius: Radius.md,
-    paddingVertical: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    ...Shadow.card,
+  },
+  kpiValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
+  kpiLabel: { fontSize: 11, color: Palette.textSub, marginTop: 3, fontWeight: '600' },
+
+  // === Month progress ===
+  monthCard: {
+    backgroundColor: Palette.card,
+    borderRadius: Radius.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 20,
+    ...Shadow.card,
+  },
+  monthRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 10,
+  },
+  monthLabel: { fontSize: 13, fontWeight: '600', color: Palette.textMain },
+  monthValue: { fontSize: 13, color: Palette.textSub },
+  monthBig: { fontSize: 22, fontWeight: '800', color: Palette.textMain, letterSpacing: -0.5 },
+  monthGoal: { fontSize: 13, color: Palette.textMuted, fontWeight: '500' },
+  progressBar: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Palette.grayBg,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Palette.primary,
+    borderRadius: 3,
+  },
+
+  // === Quick actions ===
+  quickRow: { flexDirection: 'row', gap: 6 },
+  quickTile: {
+    flex: 1,
+    backgroundColor: Palette.card,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
     alignItems: 'center',
     ...Shadow.card,
   },
   quickIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: Palette.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  quickLabel: { fontSize: 10, fontWeight: '600', color: Palette.textMain },
-
-  // Notice
-  noticeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Palette.card,
-    borderRadius: Radius.md,
-    padding: 12,
-    gap: 10,
-    ...Shadow.card,
-  },
-  noticeTitle: { fontSize: 12, fontWeight: '600', color: Palette.textMain },
-  noticeSub: { fontSize: 11, color: Palette.textSub, marginTop: 2 },
-
-  actionBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Palette.primarySoft,
-    borderRadius: Radius.md,
-    padding: 10,
     marginBottom: 6,
-    gap: 8,
   },
-  actionIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Palette.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionTitle: { fontSize: 12, fontWeight: '700', color: Palette.primaryDeep },
-  actionSub: { fontSize: 10, color: Palette.primary, marginTop: 2 },
-
-  staleBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF7ED',
-    borderRadius: Radius.md,
-    padding: 10,
-    marginBottom: 6,
-    gap: 8,
-  },
-  staleTitle: { fontSize: 12, fontWeight: '700', color: Palette.orange },
-  staleSub: { fontSize: 10, color: '#D97706', marginTop: 2 },
-
-  focusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 8,
-    flexWrap: 'wrap',
-  },
-  focusLabel: { fontSize: 11, fontWeight: '700', color: Palette.textSub, marginRight: 4 },
-  focusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: Radius.pill,
-    backgroundColor: Palette.grayBg,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  focusChipActive: { backgroundColor: Palette.textMain },
-  focusChipDot: { width: 5, height: 5, borderRadius: 3 },
-  focusChipText: { fontSize: 11, fontWeight: '600', color: Palette.textSub },
-  focusChipTextActive: { color: '#FFFFFF' },
-
-  pendingHomeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    borderRadius: Radius.md,
-    padding: 10,
-    marginBottom: 6,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  pendingHomeIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Palette.red,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pendingHomeTitle: { fontSize: 12, fontWeight: '700', color: Palette.red },
-  pendingHomeSub: { fontSize: 10, color: '#991B1B', marginTop: 2 },
+  quickLabel: { fontSize: 12, fontWeight: '600', color: Palette.textMain },
 });
-
-// Suppress unused — kept for future use
-void GradeColor;
