@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AddressSearchButton } from '@/components/address-search-button';
+import { ConfirmNameSheet } from '@/components/confirm-name-sheet';
 import { useAuth } from '@/lib/auth-context';
 import { useCustomers } from '@/hooks/use-customers';
 
@@ -54,6 +55,7 @@ export default function EditCustomerScreen() {
   const [geocoding, setGeocoding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const kakaoRestKey = process.env.EXPO_PUBLIC_KAKAO_REST_KEY ?? '';
 
@@ -265,26 +267,37 @@ export default function EditCustomerScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          {/* 위험 영역 */}
+          {/* 삭제 — ConfirmNameSheet 로 이름 입력 확인 */}
           <View style={styles.dangerBox}>
-            <Text style={styles.dangerLabel}>위험 영역</Text>
-            <TouchableOpacity
-              style={styles.dangerBtn}
-              onPress={() => {
-                const ok =
-                  Platform.OS === 'web'
-                    ? window.confirm(`${existing.name}님을 정말 삭제할까요? 복구 불가능합니다.`)
-                    : true; // 네이티브는 Alert 추가 필요
-                if (!ok) return;
-                void remove(existing.id).then(() => router.back());
-              }}>
-              <Text style={styles.dangerBtnText}>고객 삭제</Text>
+            <Text style={styles.dangerLabel}>되돌릴 수 없는 작업</Text>
+            <TouchableOpacity style={styles.dangerBtn} onPress={() => setDeleteOpen(true)}>
+              <Text style={styles.dangerBtnText}>이 고객 영구 삭제</Text>
             </TouchableOpacity>
+            <Text style={styles.dangerHint}>
+              삭제하면 활동 기록·메모·연결된 일정이 모두 사라져요
+            </Text>
           </View>
 
           <View style={{ height: 24 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ConfirmNameSheet
+        visible={deleteOpen}
+        confirmName={existing.name}
+        title="이 고객을 삭제할까요?"
+        description={
+          `삭제하면 다음이 모두 영구 삭제돼요:\n· 활동 기록 (통화·미팅·메모)\n· 다음 액션 / 기념일\n· 좌표·주소\n· 영업판에서의 카드\n\n복구할 수 없으니 신중히 결정해주세요.`
+        }
+        destructiveLabel="영구 삭제"
+        inputLabel="확인을 위해 고객 이름을 그대로 입력해주세요"
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={async () => {
+          await remove(existing.id);
+          setDeleteOpen(false);
+          router.back();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -335,12 +348,12 @@ const styles = StyleSheet.create({
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   emptyText: { fontSize: 14, color: '#64748B', fontWeight: '500' },
   dangerBox: {
-    marginTop: 32,
+    marginTop: 36,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#FEE2E2',
+    borderTopColor: '#E2E8F0',
   },
-  dangerLabel: { fontSize: 11, fontWeight: '700', color: '#DC2626', marginBottom: 8 },
+  dangerLabel: { fontSize: 11, fontWeight: '700', color: '#64748B', marginBottom: 8 },
   dangerBtn: {
     paddingVertical: 12,
     borderRadius: 12,
@@ -348,4 +361,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dangerBtnText: { color: '#DC2626', fontWeight: '700', fontSize: 14 },
+  dangerHint: {
+    fontSize: 11,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 16,
+  },
 });
