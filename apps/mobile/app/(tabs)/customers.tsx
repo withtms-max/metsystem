@@ -26,6 +26,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BulkImportSheet } from '@/components/bulk-import-sheet';
 import { CallSheet } from '@/components/call-sheet';
+import { GradeBadge } from '@/components/grade-badge';
 import { useAuth } from '@/lib/auth-context';
 import { useCustomers } from '@/hooks/use-customers';
 import { supabase } from '@/lib/supabase';
@@ -294,12 +295,7 @@ function CustomerCard({
           {customer.job_title ? ` · ${customer.job_title}` : ''}
         </Text>
         <View style={styles.customerMeta}>
-          <View style={[styles.gradeChip, { backgroundColor: grade.bg }]}>
-            <View style={[styles.gradeDot, { backgroundColor: grade.dot }]} />
-            <Text style={[styles.gradeChipText, { color: grade.fg }]}>
-              {customer.grade}등급
-            </Text>
-          </View>
+          <GradeBadge grade={customer.grade} size="sm" />
           {customer.region_tag && (
             <View style={styles.regionChip}>
               <Ionicons name="location-outline" size={11} color={Palette.textSub} />

@@ -10,3 +10,4 @@ export * from './resources';
 export * from './insights';
 export * from './campaign-progress';
 export * from './memberships';
+export * from './today-timeline';

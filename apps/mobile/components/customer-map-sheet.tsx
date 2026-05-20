@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { kindLabel, type CustomerPin } from '@/components/customer-map';
+import { GradeBadge } from '@/components/grade-badge';
 import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
@@ -86,10 +87,7 @@ export function CustomerMapSheet({ pin, onClose, onOpenDetail }: Props) {
                 {customer.job_title ? ` · ${customer.job_title}` : ''}
               </Text>
             </View>
-            <View style={[styles.gradeChip, { backgroundColor: grade.bg }]}>
-              <View style={[styles.gradeDot, { backgroundColor: grade.dot }]} />
-              <Text style={[styles.gradeChipText, { color: grade.fg }]}>{customer.grade}급</Text>
-            </View>
+            <GradeBadge grade={customer.grade} size="md" />
           </View>
 
           {/* 클릭한 주소 강조 + 다른 주소 요약 */}

@@ -164,7 +164,7 @@ export default function MapScreen() {
               <Text style={styles.geoBannerOkText}>
                 {GEOFENCE_RADIUS_KM}km 안에 {nearby.length}명 ·{' '}
                 {topNearbyGrade
-                  ? `${topNearbyGrade.pin.customer.company ?? topNearbyGrade.pin.customer.name} (${topNearbyGrade.pin.customer.grade}급) ${formatDistance(topNearbyGrade.distKm)}`
+                  ? `${topNearbyGrade.pin.customer.company ?? topNearbyGrade.pin.customer.name} · ${formatDistance(topNearbyGrade.distKm)}`
                   : `가장 가까운 ${formatDistance(nearby[0].distKm)}`}
               </Text>
             </View>

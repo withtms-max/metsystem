@@ -13,7 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { GradeColor, Palette, Radius, Shadow } from '@/constants/theme';
+import { GradeBadge } from '@/components/grade-badge';
+import { Palette, Radius, Shadow } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 
@@ -133,7 +134,6 @@ export function WeeklyCheckinCard({ onChanged }: { onChanged?: () => void }) {
 
       <View style={styles.list}>
         {staleList.map((c) => {
-          const gradeStyle = GradeColor[c.grade];
           const isChecked = checked.has(c.id);
           return (
             <TouchableOpacity
@@ -151,13 +151,10 @@ export function WeeklyCheckinCard({ onChanged }: { onChanged?: () => void }) {
                 ]}>
                 {isChecked && <Ionicons name="checkmark" size={11} color="#FFFFFF" />}
               </View>
-              <View style={[styles.gradeDot, { backgroundColor: gradeStyle.dot }]} />
               <Text style={styles.rowName} numberOfLines={1}>
                 {c.company ?? c.name}
               </Text>
-              <Text style={styles.rowSub} numberOfLines={1}>
-                {c.grade}급
-              </Text>
+              <GradeBadge grade={c.grade} size="sm" />
             </TouchableOpacity>
           );
         })}
