@@ -116,3 +116,64 @@ export async function logQuickCall(
   } as any);
   if (error) throw error;
 }
+
+/**
+ * "챙겼어요" 표시 — 카톡·문자·만남 등 앱 밖에서 연락한 경우.
+ * 영업맨이 무연락 배너 보고 "이미 챙겼어요" 버튼 누름 → activity_log 생성 →
+ * last_contact_at 트리거 자동 갱신 → 무연락 카운트 리셋.
+ *
+ * 활동 타입은 'memo' (통화 아니라 일반 챙김 표시).
+ */
+export async function markAsContacted(
+  supabase: MetSupabaseClient,
+  input: {
+    userId: string;
+    organizationId: string;
+    customerId: string;
+    note?: string;
+  },
+): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { error } = await supabase.from('activity_logs').insert({
+    user_id: input.userId,
+    organization_id: input.organizationId,
+    customer_id: input.customerId,
+    activity_type: 'memo',
+    status: 'completed',
+    activity_date: today,
+    note: input.note ?? '챙김 표시 (앱 외 연락)',
+    source: 'quick_mark',
+    duration_seconds: null,
+    mood: null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+  if (error) throw error;
+}
+
+/** 여러 고객 일괄 챙김 표시 (주간 정리용) */
+export async function markBatchAsContacted(
+  supabase: MetSupabaseClient,
+  input: {
+    userId: string;
+    organizationId: string;
+    customerIds: string[];
+  },
+): Promise<void> {
+  if (input.customerIds.length === 0) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = input.customerIds.map((customerId) => ({
+    user_id: input.userId,
+    organization_id: input.organizationId,
+    customer_id: customerId,
+    activity_type: 'memo' as const,
+    status: 'completed' as const,
+    activity_date: today,
+    note: '주간 정리에서 챙김 표시',
+    source: 'weekly_check',
+    duration_seconds: null,
+    mood: null,
+  }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await supabase.from('activity_logs').insert(rows as any);
+  if (error) throw error;
+}

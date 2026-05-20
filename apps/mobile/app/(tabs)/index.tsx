@@ -29,6 +29,8 @@ import { usePendingRequests } from '@/hooks/use-pending-requests';
 import { usePipeline } from '@/hooks/use-pipeline';
 import { Palette, Radius, Shadow } from '@/constants/theme';
 import { ProfileSheet } from '@/components/profile-sheet';
+import { QuickMarkButton } from '@/components/quick-mark-button';
+import { WeeklyCheckinCard } from '@/components/weekly-checkin-card';
 
 function formatToday(): string {
   const d = new Date();
@@ -54,6 +56,8 @@ interface HeroCardData {
   title: string;
   body: string;
   cta: string;
+  /** 챙김 버튼이 동작할 고객 ID (있을 때만 노출) */
+  targetCustomerId?: string;
   onPress: () => void;
 }
 
@@ -145,25 +149,27 @@ export default function HomeScreen() {
         title: todayAction.next_action_text ?? '오늘 액션',
         body: `${todayAction.company ?? todayAction.name} · 오늘 예정`,
         cta: '시작하기',
+        targetCustomerId: todayAction.id,
         onPress: () =>
           router.push({ pathname: '/customer/[id]', params: { id: todayAction.id } }),
       };
     }
 
-    // 3순위: 90일+ 무연락
+    // 3순위: 90일+ 무연락 (톤다운)
     if (staleCustomers.length > 0) {
       const first = staleCustomers[0];
       return {
         kind: 'stale',
-        icon: 'time',
+        icon: 'leaf',
         iconColor: Palette.orange,
         iconBg: Palette.orangeBg,
-        title: `${first.grade}급 ${first.name}님, 한 통 어때요?`,
+        title: `${first.grade}급 ${first.name}님, 한 번 챙겨볼 시간`,
         body:
           staleCustomers.length > 1
-            ? `90일 이상 무연락 ${staleCustomers.length}명 중`
-            : '90일 이상 무연락',
+            ? `오래 못 본 분 ${staleCustomers.length}명 (앱 기록 기준)`
+            : '앱 기록 기준 · 이미 챙겼다면 ✓',
         cta: '연락하기',
+        targetCustomerId: first.id,
         onPress: () =>
           router.push({ pathname: '/customer/[id]', params: { id: first.id } }),
       };
@@ -180,6 +186,7 @@ export default function HomeScreen() {
         title: first.next_action_text ?? '예정된 액션',
         body: `${first.next_action_date} · ${first.company ?? first.name}`,
         cta: '확인',
+        targetCustomerId: first.id,
         onPress: () =>
           router.push({ pathname: '/customer/[id]', params: { id: first.id } }),
       };
@@ -224,29 +231,45 @@ export default function HomeScreen() {
       <ProfileSheet visible={profileOpen} onClose={() => setProfileOpen(false)} />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* 주간 정리 — 월요일·7일 단위 자동 노출 */}
+        <WeeklyCheckinCard onChanged={reloadIntel} />
+
         {/* ============================================ */}
         {/* HERO — 오늘 가장 중요한 한 가지              */}
         {/* ============================================ */}
-        <TouchableOpacity
-          style={styles.hero}
-          onPress={heroCard.onPress}
-          activeOpacity={0.9}>
-          <View style={[styles.heroIcon, { backgroundColor: heroCard.iconBg }]}>
-            <Ionicons name={heroCard.icon} size={22} color={heroCard.iconColor} />
+        <View style={styles.hero}>
+          <TouchableOpacity
+            style={styles.heroMain}
+            onPress={heroCard.onPress}
+            activeOpacity={0.85}>
+            <View style={[styles.heroIcon, { backgroundColor: heroCard.iconBg }]}>
+              <Ionicons name={heroCard.icon} size={22} color={heroCard.iconColor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {heroCard.title}
+              </Text>
+              <Text style={styles.heroBody} numberOfLines={1}>
+                {heroCard.body}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={Palette.textMuted} />
+          </TouchableOpacity>
+
+          {/* HERO 액션 — 메인 CTA + 챙김 보조 (무연락·이번주 액션 일 때만) */}
+          <View style={styles.heroActions}>
+            <TouchableOpacity style={styles.heroCta} onPress={heroCard.onPress}>
+              <Text style={styles.heroCtaText}>{heroCard.cta}</Text>
+            </TouchableOpacity>
+            {(heroCard.kind === 'stale' || heroCard.kind === 'upcoming') &&
+              heroCard.targetCustomerId && (
+                <QuickMarkButton
+                  customerId={heroCard.targetCustomerId}
+                  onMarked={reloadIntel}
+                />
+              )}
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.heroTitle} numberOfLines={1}>
-              {heroCard.title}
-            </Text>
-            <Text style={styles.heroBody} numberOfLines={1}>
-              {heroCard.body}
-            </Text>
-          </View>
-          <View style={styles.heroCta}>
-            <Text style={styles.heroCtaText}>{heroCard.cta}</Text>
-            <Ionicons name="chevron-forward" size={14} color={Palette.primary} />
-          </View>
-        </TouchableOpacity>
+        </View>
 
         {/* ============================================ */}
         {/* 오늘 KPI                                     */}
@@ -378,14 +401,17 @@ const styles = StyleSheet.create({
 
   // === HERO Card ===
   hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: Palette.card,
     borderRadius: Radius.lg,
-    padding: 16,
-    gap: 14,
+    padding: 14,
     marginBottom: 20,
     ...Shadow.card,
+  },
+  heroMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
   },
   heroIcon: {
     width: 44,
@@ -399,19 +425,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Palette.textMain,
     letterSpacing: -0.2,
+    lineHeight: 20,
   },
   heroBody: {
     fontSize: 12,
     color: Palette.textSub,
     marginTop: 3,
   },
-  heroCta: {
+  heroActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingLeft: 8,
+    gap: 6,
   },
-  heroCtaText: { fontSize: 12, color: Palette.primary, fontWeight: '700' },
+  heroCta: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: Palette.primary,
+    borderRadius: Radius.pill,
+    flex: 1,
+    alignItems: 'center',
+  },
+  heroCtaText: { fontSize: 12, color: '#FFFFFF', fontWeight: '700' },
 
   // === Section label ===
   sectionLabel: {
